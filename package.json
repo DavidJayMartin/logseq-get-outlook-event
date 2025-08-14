@@ -1,0 +1,11 @@
+{
+  "name": "logseq-plugin-get-outlook-event",
+  "version": "0.0.1",
+  "author": "David Jay Martin",
+  "main": "index.html",
+  "logseq": {
+    "id": "logseq-plugin-get-outlook-event",
+    "title": "Get Outlook Events",
+    "icon": "logseq.png"
+  }
+}
