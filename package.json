@@ -1,11 +1,13 @@
 {
-  "name": "logseq-plugin-get-outlook-event",
-  "version": "0.0.1",
+  "name": "logseq-plugin-get-outlook-events",
+  "version": "0.1.0",
   "author": "David Jay Martin",
+  "description": "A plugin to add events from a local Outlook file to a journal page.",
   "main": "index.html",
+  "repo": "DavidJayMartin/logseq-get-outlook-event",
   "logseq": {
-    "id": "logseq-plugin-get-outlook-event",
+    "id": "logseq-plugin-get-outlook-events",
     "title": "Get Outlook Events",
-    "icon": "logseq.png"
+    "icon": "get_outlook_events.png"
   }
 }
