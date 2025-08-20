@@ -108,23 +108,36 @@ function calculateDuration(startTime, endTime) {
 }
 
 /**
- * Format event subject based on bracket settings
+ * Format event subject based on bracket settings and add recurring emoji
  * @param {string} subject - The event subject
  * @param {boolean} isRecurring - Whether the event is recurring
- * @returns {string} - Formatted subject with or without brackets
+ * @returns {string} - Formatted subject with or without brackets and recurring emoji
  */
 function formatEventSubject(subject, isRecurring = false) {
   const bracketSetting = logseq.settings?.bracketEvents || "none";
   
+  let formattedSubject = subject;
+  
+  // First apply brackets based on setting
   switch (bracketSetting) {
     case "all":
-      return `[[${subject}]]`;
+      formattedSubject = `[[${subject}]]`;
+      break;
     case "recurring":
-      return isRecurring ? `[[${subject}]]` : subject;
+      formattedSubject = isRecurring ? `[[${subject}]]` : subject;
+      break;
     case "none":
     default:
-      return subject;
+      formattedSubject = subject;
+      break;
   }
+  
+  // Then add recurring emoji outside the brackets if it's a recurring event
+  if (isRecurring) {
+    formattedSubject = `${formattedSubject} 🔃`;
+  }
+  
+  return formattedSubject;
 }
 
 /**
