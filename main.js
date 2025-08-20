@@ -108,7 +108,106 @@ function calculateDuration(startTime, endTime) {
 }
 
 /**
- * Format attendees list with square brackets
+ * Format event subject based on bracket settings
+ * @param {string} subject - The event subject
+ * @param {boolean} isRecurring - Whether the event is recurring
+ * @returns {string} - Formatted subject with or without brackets
+ */
+function formatEventSubject(subject, isRecurring = false) {
+  const bracketSetting = logseq.settings?.bracketEvents || "none";
+  
+  switch (bracketSetting) {
+    case "all":
+      return `[[${subject}]]`;
+    case "recurring":
+      return isRecurring ? `[[${subject}]]` : subject;
+    case "none":
+    default:
+      return subject;
+  }
+}
+
+/**
+ * Format event description by truncating if needed
+ * @param {string} description - The event description
+ * @returns {string} - Formatted/truncated description
+ */
+function formatDescription(description) {
+  if (!description) return "";
+  
+  const maxLength = logseq.settings?.descriptionMaxLength || 0;
+  
+  if (maxLength > 0 && description.length > maxLength) {
+    return description.substring(0, maxLength).trim() + "...";
+  }
+  
+  return description.trim();
+}
+
+/**
+ * Format event block content based on user template and handle child blocks
+ * @param {object} event - The event object from API
+ * @returns {object} - Object with mainContent and childBlocks array
+ */
+function formatEventContent(event) {
+  const template = logseq.settings?.outputFormat || 
+    "{subject}\\nevent-time:: {time}\\nevent-duration:: {duration}\\nattendees:: {attendees}";
+  const includeEmpty = logseq.settings?.includeEmptyFields || false;
+  
+  // Format the event subject with brackets if needed
+  const formattedSubject = formatEventSubject(event.subject, event.isRecurring);
+  
+  // Prepare all possible variables
+  const variables = {
+    subject: formattedSubject,
+    time: formatTime(event.start),
+    duration: calculateDuration(event.start, event.end),
+    attendees: formatAttendees(event.attendees),
+    location: event.location || "",
+    description: formatDescription(event.description || "")
+  };
+  
+  // Replace variables in template
+  let content = template;
+  
+  // Handle each variable replacement
+  Object.keys(variables).forEach(key => {
+    const value = variables[key];
+    const placeholder = `{${key}}`;
+    
+    if (content.includes(placeholder)) {
+      if (!includeEmpty && !value) {
+        // Remove the entire line if the field is empty and includeEmpty is false
+        const lines = content.split('\\n');
+        content = lines.filter(line => {
+          if (line.includes(placeholder)) {
+            // Only remove lines that are just property assignments (contain ::)
+            return line.includes('::') ? false : true;
+          }
+          return true;
+        }).join('\\n');
+      } else {
+        // Replace the placeholder with the value
+        content = content.replace(new RegExp(`\\{${key}\\}`, 'g'), value);
+      }
+    }
+  });
+  
+  // Convert \\n to actual newlines
+  content = content.replace(/\\n/g, '\n');
+  
+  // Split content by ---CHILD--- delimiter to separate main content from child blocks
+  const parts = content.split('---CHILD---');
+  const mainContent = parts[0].trim();
+  const childBlocks = parts.slice(1).map(block => block.trim()).filter(block => block.length > 0);
+  
+  return {
+    mainContent,
+    childBlocks
+  };
+}
+
+/**
  * @param {Array} attendees - Array of attendee names
  * @returns {string} - Comma-separated list with each name in square brackets
  */
@@ -116,7 +215,16 @@ function formatAttendees(attendees) {
   if (!attendees || attendees.length === 0) {
     return "";
   }
-  return attendees.map(name => `[[${name}]]`).join(", ");
+  
+  // Get the user's configured name to exclude
+  const excludeName = logseq.settings?.excludeUserName || "";
+  
+  // Filter out the user's name if configured
+  const filteredAttendees = excludeName 
+    ? attendees.filter(name => name !== excludeName)
+    : attendees;
+  
+  return filteredAttendees.map(name => `[${name}]`).join(", ");
 }
 
 /**
@@ -126,7 +234,9 @@ function formatAttendees(attendees) {
  */
 async function fetchEventsFromAPI(dateString) {
   try {
-    const response = await fetch(`http://localhost:5000/events/${dateString}`);
+    // Get the configured API URL, default to localhost:5000
+    const apiUrl = logseq.settings?.apiUrl || 'http://localhost:5000';
+    const response = await fetch(`${apiUrl}/events/${dateString}`);
     
     if (!response.ok) {
       console.error(`API request failed: ${response.status} ${response.statusText}`);
@@ -148,8 +258,6 @@ async function fetchEventsFromAPI(dateString) {
   }
 }
 
-
-// Insert the day's list of events from the local Outlook calendar.
 // Insert the day's list of events from the local Outlook calendar.
 async function getEvents(e) {
   console.log('=== getEvents function called ===');
@@ -189,27 +297,35 @@ async function getEvents(e) {
     
     console.log('Events sorted by start time');
     
-    // Insert each event as a block
-    for (let i = 0; i < sortedEvents.length; i++) {
+    // Insert in reverse order with before: true to get chronological order
+    for (let i = sortedEvents.length - 1; i >= 0; i--) {
       const event = sortedEvents[i];
       console.log(`Processing event ${i + 1}:`, event.subject);
       
-      // Format the complete event block content
-      const eventContent = [
-        event.subject,
-        `event-time:: ${formatTime(event.start)}`,
-        `event-duration:: ${calculateDuration(event.start, event.end)}`,
-        `attendees:: ${formatAttendees(event.attendees)}`
-      ].join('\n');
+      // Format the complete event block content using the user's template
+      const eventData = formatEventContent(event);
       
-      // Insert each event as a sibling after the trigger block
+      // Insert the main event block
       const insertedBlock = await logseq.Editor.insertBlock(
         e.uuid, 
-        eventContent, 
+        eventData.mainContent, 
         { sibling: true, before: true }
       );
       
       console.log('Event block inserted, UUID:', insertedBlock?.uuid);
+      
+      // Insert any child blocks
+      if (eventData.childBlocks.length > 0 && insertedBlock?.uuid) {
+        for (const childContent of eventData.childBlocks) {
+          const childBlock = await logseq.Editor.insertBlock(
+            insertedBlock.uuid,
+            childContent,
+            { sibling: false }  // Insert as child, not sibling
+          );
+          console.log('Child block inserted, UUID:', childBlock?.uuid);
+        }
+      }
+      
       console.log(`Inserted event: ${event.subject}`);
     }
     
@@ -224,6 +340,55 @@ async function getEvents(e) {
 // The main app
 const main = async () => {
   console.log('Get Outlook Events Plugin Loaded');
+  
+  // Register plugin settings
+  logseq.useSettingsSchema([
+    {
+      key: "excludeUserName",
+      type: "string",
+      default: "",
+      title: "Exclude User Name",
+      description: "Enter your name to exclude it from the attendees list (e.g., 'Martin, David' or 'John Smith')"
+    },
+    {
+      key: "apiUrl",
+      type: "string", 
+      default: "http://localhost:5000",
+      title: "API URL",
+      description: "The URL of the Outlook Events API service"
+    },
+    {
+      key: "bracketEvents",
+      type: "enum",
+      default: "none",
+      title: "Add Double Brackets to Event Titles",
+      description: "Choose when to add [[double brackets]] around event subjects to create Logseq page links",
+      enumChoices: ["all", "recurring", "none"],
+      enumPicker: "select"
+    },
+    {
+      key: "outputFormat",
+      type: "string",
+      inputAs: "textarea",
+      default: "{subject}\\nevent-time:: {time}\\nevent-duration:: {duration}\\nattendees:: {attendees}",
+      title: "Output Format Template",
+      description: "Customize the format of event blocks. Available variables: {subject}, {time}, {duration}, {attendees}, {location}, {description}. Use \\n for new lines. Use ---CHILD--- to create child blocks."
+    },
+    {
+      key: "includeEmptyFields",
+      type: "boolean",
+      default: false,
+      title: "Include Empty Fields",
+      description: "Whether to include fields in the output even when they are empty (e.g., show 'location::' even if no location is set)"
+    },
+    {
+      key: "descriptionMaxLength",
+      type: "number",
+      default: 200,
+      title: "Description Max Length",
+      description: "Maximum number of characters to include from event descriptions (0 = no limit)"
+    }
+  ]);
   
   logseq.Editor.registerSlashCommand('Get Events', async (e) => {
     getEvents(e);

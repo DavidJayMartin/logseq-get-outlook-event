@@ -35,13 +35,11 @@ def get_events(date_str):
             
             # Only include events that actually start on the requested date
             if item_date == date:
-                # Get list of recipients/attendees
+                # Get list of recipients/attendees (no filtering - let JavaScript handle it)
                 attendees = []
                 try:
                     for recipient in item.Recipients:
-                        # Exclude "Martin, David" from the attendees list
-                        if recipient.Name != "Martin, David":
-                            attendees.append(recipient.Name)
+                        attendees.append(recipient.Name)
                 except:
                     # Some items might not have recipients
                     pass
@@ -51,7 +49,9 @@ def get_events(date_str):
                     "start": str(item.Start),
                     "end": str(item.End),
                     "location": item.Location,
-                    "attendees": attendees
+                    "attendees": attendees,
+                    "isRecurring": item.IsRecurring if hasattr(item, 'IsRecurring') else False,
+                    "description": item.Body if hasattr(item, 'Body') else ""
                 })
 
         return {"success": True, "events": events, "date": date_str}

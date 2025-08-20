@@ -1,0 +1,101 @@
+﻿Tue 08/19/2025 16:20:33.46 - Starting script execution 
+Tue 08/19/2025 16:20:34.06 - Virtual environment activated successfully 
+Tue 08/19/2025 16:20:34.06 - Starting Python script: C:\Users\martin.1537\OneDrive - The Ohio State University\Digital Mind\logseq-get-outlook-event\outlook_events_api.py 
+Starting Outlook Events API...
+Available endpoints:
+  GET /health - Health check
+  GET /events?date=YYYY-MM-DD - Get events by query parameter
+  GET /events/YYYY-MM-DD - Get events by URL path
+  GET /events/today - Get today's events
+
+Example usage:
+  http://localhost:5000/events?date=2025-08-18
+  http://localhost:5000/events/2025-08-18
+  http://localhost:5000/events/today
+
+ * Serving Flask app 'outlook_events_api'
+ * Debug mode: on
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.0.38:5000
+Press CTRL+C to quit
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 874-311-592
+127.0.0.1 - - [19/Aug/2025 16:21:08] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [19/Aug/2025 16:23:24] "GET /events/today HTTP/1.1" 400 -
+127.0.0.1 - - [19/Aug/2025 16:25:53] "GET /events/2025-08-18 HTTP/1.1" 400 -
+127.0.0.1 - - [19/Aug/2025 16:27:53] "GET /events/2025-08-19 HTTP/1.1" 400 -
+ * Detected change in 'C:\\Users\\martin.1537\\OneDrive - The Ohio State University\\Digital Mind\\logseq-get-outlook-event\\outlook_events_api.py', reloading
+Starting Outlook Events API...
+Available endpoints:
+  GET /health - Health check
+  GET /events?date=YYYY-MM-DD - Get events by query parameter
+  GET /events/YYYY-MM-DD - Get events by URL path
+  GET /events/today - Get today's events
+
+Example usage:
+  http://localhost:5000/events?date=2025-08-18
+  http://localhost:5000/events/2025-08-18
+  http://localhost:5000/events/today
+
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 874-311-592
+127.0.0.1 - - [19/Aug/2025 16:32:38] "GET /events/2025-08-18 HTTP/1.1" 400 -
+127.0.0.1 - - [19/Aug/2025 16:36:27] "GET /events/2025-08-18 HTTP/1.1" 400 -
+ * Detected change in 'C:\\Users\\martin.1537\\OneDrive - The Ohio State University\\Digital Mind\\logseq-get-outlook-event\\outlook_events_api.py', reloading
+Starting Outlook Events API...
+Available endpoints:
+  GET /health - Health check
+  GET /events?date=YYYY-MM-DD - Get events by query parameter
+  GET /events/YYYY-MM-DD - Get events by URL path
+  GET /events/today - Get today's events
+
+Example usage:
+  http://localhost:5000/events?date=2025-08-18
+  http://localhost:5000/events/2025-08-18
+  http://localhost:5000/events/today
+
+Starting get_events for date: 2025-08-18
+COM initialized
+Parsed date: 2025-08-18 00:00:00
+Connecting to Outlook...
+Exception: (-2146959355, 'Server execution failed', None, None)
+COM uninitialized
+Starting get_events for date: 2025-08-18
+COM initialized
+Parsed date: 2025-08-18 00:00:00
+Connecting to Outlook...
+Exception: (-2146959355, 'Server execution failed', None, None)
+COM uninitialized
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 874-311-592
+127.0.0.1 - - [19/Aug/2025 16:45:55] "GET /events/2025-08-18 HTTP/1.1" 400 -
+Wed 08/20/2025  9:06:06.73 - Starting script execution 
+Wed 08/20/2025  9:06:07.41 - Virtual environment activated successfully 
+Wed 08/20/2025  9:06:07.41 - Starting Python script: C:\Users\martin.1537\OneDrive - The Ohio State University\Digital Mind\logseq-get-outlook-event\outlook_events_api.py 
+Starting Outlook Events API...
+Available endpoints:
+  GET /health - Health check
+  GET /events?date=YYYY-MM-DD - Get events by query parameter
+  GET /events/YYYY-MM-DD - Get events by URL path
+  GET /events/today - Get today's events
+
+Example usage:
+  http://localhost:5000/events?date=2025-08-18
+  http://localhost:5000/events/2025-08-18
+  http://localhost:5000/events/today
+
+ * Serving Flask app 'outlook_events_api'
+ * Debug mode: on
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.0.38:5000
+Press CTRL+C to quit
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 874-311-592
