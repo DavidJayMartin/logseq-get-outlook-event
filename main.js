@@ -59,7 +59,7 @@ function formatDateForAPI(date) {
 }
 
 /**
- * Format time string to 12-hour format (HH:MM AM/PM) without timezone conversion
+ * Format time string to 12-hour or 24-hour format without timezone conversion
  * @param {string} timeString - Time string from Outlook (already in Eastern time)
  * @returns {string} - Formatted time string
  */
@@ -73,15 +73,23 @@ function formatTime(timeString) {
   let hours = utcDate.getHours();
   const minutes = utcDate.getMinutes();
   
-  // Convert to 12-hour format
-  const ampm = hours >= 12 ? 'PM' : 'AM';
-  hours = hours % 12;
-  hours = hours ? hours : 12; // the hour '0' should be '12'
-  
   // Format minutes with leading zero if needed
   const minutesStr = minutes < 10 ? '0' + minutes : minutes;
   
-  return `${hours}:${minutesStr} ${ampm}`;
+  // Get time format setting (default to 12-hour)
+  const timeFormat = logseq.settings?.timeFormat || "12";
+  
+  if (timeFormat === "24") {
+    // 24-hour format
+    const hoursStr = hours < 10 ? '0' + hours : hours;
+    return `${hoursStr}:${minutesStr}`;
+  } else {
+    // 12-hour format
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12; // the hour '0' should be '12'
+    return `${hours}:${minutesStr} ${ampm}`;
+  }
 }
 
 /**
@@ -418,6 +426,15 @@ const main = async () => {
       title: "Add Double Brackets to Event Titles",
       description: "Choose when to add [[double brackets]] around event subjects to create Logseq page links",
       enumChoices: ["all", "recurring", "none"],
+      enumPicker: "select"
+    },
+    {
+      key: "timeFormat",
+      type: "enum",
+      default: "12",
+      title: "Time Format",
+      description: "Choose between 12-hour (9:00 AM) or 24-hour (09:00) time format",
+      enumChoices: ["12", "24"],
       enumPicker: "select"
     },
     {
