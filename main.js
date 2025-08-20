@@ -108,12 +108,41 @@ function calculateDuration(startTime, endTime) {
 }
 
 /**
- * Format event subject based on bracket settings and add recurring emoji
+ * Create meeting links for an event
+ * @param {Array} meetingLinks - Array of meeting link URLs
+ * @returns {string} - Markdown links string
+ */
+function createMeetingLinks(meetingLinks) {
+  if (!meetingLinks || meetingLinks.length === 0) {
+    return "";
+  }
+  
+  let linksHtml = "";
+  
+  meetingLinks.forEach((link, index) => {
+    // Use "Join Meeting" for all links, with numbering for multiple links
+    let linkText = meetingLinks.length > 1 ? `Join Meeting ${index + 1}` : "Join Meeting";
+    
+    // Create the markdown link
+    linksHtml += `[${linkText}](${link})`;
+    
+    // Add space between multiple links
+    if (index < meetingLinks.length - 1) {
+      linksHtml += " ";
+    }
+  });
+  
+  return " " + linksHtml; // Add leading space to separate from subject/emoji
+}
+
+/**
+ * Format event subject based on bracket settings and add recurring emoji and meeting links
  * @param {string} subject - The event subject
  * @param {boolean} isRecurring - Whether the event is recurring
- * @returns {string} - Formatted subject with or without brackets and recurring emoji
+ * @param {Array} meetingLinks - Array of meeting link URLs
+ * @returns {string} - Formatted subject with brackets, recurring emoji, and meeting links
  */
-function formatEventSubject(subject, isRecurring = false) {
+function formatEventSubject(subject, isRecurring = false, meetingLinks = []) {
   const bracketSetting = logseq.settings?.bracketEvents || "none";
   
   let formattedSubject = subject;
@@ -136,6 +165,10 @@ function formatEventSubject(subject, isRecurring = false) {
   if (isRecurring) {
     formattedSubject = `${formattedSubject} 🔃`;
   }
+  
+  // Finally add meeting links after subject and emoji
+  const meetingLinks_formatted = createMeetingLinks(meetingLinks);
+  formattedSubject = `${formattedSubject}${meetingLinks_formatted}`;
   
   return formattedSubject;
 }
@@ -167,8 +200,8 @@ function formatEventContent(event) {
     "{subject}\\nevent-time:: {time}\\nevent-duration:: {duration}\\nattendees:: {attendees}";
   const includeEmpty = logseq.settings?.includeEmptyFields || false;
   
-  // Format the event subject with brackets if needed
-  const formattedSubject = formatEventSubject(event.subject, event.isRecurring);
+  // Format the event subject with brackets, emoji, and meeting links
+  const formattedSubject = formatEventSubject(event.subject, event.isRecurring, event.meetingLinks);
   
   // Prepare all possible variables
   const variables = {
@@ -249,7 +282,15 @@ async function fetchEventsFromAPI(dateString) {
   try {
     // Get the configured API URL, default to localhost:5000
     const apiUrl = logseq.settings?.apiUrl || 'http://localhost:5000';
-    const response = await fetch(`${apiUrl}/events/${dateString}`);
+    const meetingBaseUrls = logseq.settings?.meetingBaseUrls || '';
+    
+    // Build the URL with meeting URLs parameter if configured
+    let url = `${apiUrl}/events/${dateString}`;
+    if (meetingBaseUrls.trim()) {
+      url += `?meeting_urls=${encodeURIComponent(meetingBaseUrls)}`;
+    }
+    
+    const response = await fetch(url);
     
     if (!response.ok) {
       console.error(`API request failed: ${response.status} ${response.statusText}`);
@@ -378,6 +419,13 @@ const main = async () => {
       description: "Choose when to add [[double brackets]] around event subjects to create Logseq page links",
       enumChoices: ["all", "recurring", "none"],
       enumPicker: "select"
+    },
+    {
+      key: "meetingBaseUrls",
+      type: "string",
+      default: "https://teams.microsoft.com,https://zoom.us,https://meet.google.com",
+      title: "Meeting Base URLs",
+      description: "Comma-separated list of base URLs to look for meeting links (e.g., 'https://teams.microsoft.com,https://zoom.us,https://meet.google.com')"
     },
     {
       key: "outputFormat",

@@ -4,10 +4,42 @@ from datetime import datetime
 import win32com.client
 import pythoncom
 import traceback
+import re
 
 app = Flask(__name__)
 
-def get_events(date_str):
+def extract_meeting_links(body_text, base_urls=None):
+    """Extract meeting links from event body text"""
+    if not body_text or not base_urls:
+        return []
+    
+    meeting_links = []
+    
+    # Convert base URLs to a list if it's a string
+    if isinstance(base_urls, str):
+        base_urls = [url.strip() for url in base_urls.split(',') if url.strip()]
+    
+    for base_url in base_urls:
+        base_url = base_url.strip()
+        if not base_url:
+            continue
+            
+        # Create regex pattern to find URLs starting with the base URL
+        # This will match the base URL followed by any valid URL characters
+        pattern = re.escape(base_url) + r'[^\s<>\"\'\]\)\}]*'
+        
+        # Find all matches in the body text
+        matches = re.findall(pattern, body_text, re.IGNORECASE)
+        
+        for match in matches:
+            # Clean up the URL (remove trailing punctuation that might not be part of the URL)
+            cleaned_url = re.sub(r'[.,;!?\]\)\}]+$', '', match)
+            if cleaned_url and cleaned_url not in meeting_links:
+                meeting_links.append(cleaned_url)
+    
+    return meeting_links
+
+def get_events(date_str, meeting_base_urls=None):
     """Get Outlook events for a specific date"""
     try:
         # Initialize COM for this thread
@@ -44,6 +76,10 @@ def get_events(date_str):
                     # Some items might not have recipients
                     pass
                 
+                # Extract event body and meeting links
+                event_body = item.Body if hasattr(item, 'Body') else ""
+                meeting_links = extract_meeting_links(event_body, meeting_base_urls)
+                
                 events.append({
                     "subject": item.Subject,
                     "start": str(item.Start),
@@ -51,7 +87,8 @@ def get_events(date_str):
                     "location": item.Location,
                     "attendees": attendees,
                     "isRecurring": item.IsRecurring if hasattr(item, 'IsRecurring') else False,
-                    "description": item.Body if hasattr(item, 'Body') else ""
+                    "description": event_body,
+                    "meetingLinks": meeting_links
                 })
 
         return {"success": True, "events": events, "date": date_str}
@@ -76,11 +113,12 @@ def health_check():
 def get_events_api():
     """Get events for a specific date via query parameter"""
     date_str = request.args.get('date')
+    meeting_base_urls = request.args.get('meeting_urls', '')
     
     if not date_str:
         return jsonify({"success": False, "error": "Date parameter is required. Use ?date=YYYY-MM-DD"}), 400
     
-    result = get_events(date_str)
+    result = get_events(date_str, meeting_base_urls)
     
     if result["success"]:
         return jsonify(result)
@@ -90,7 +128,8 @@ def get_events_api():
 @app.route('/events/<date_str>', methods=['GET'])
 def get_events_by_path(date_str):
     """Get events for a specific date via URL path"""
-    result = get_events(date_str)
+    meeting_base_urls = request.args.get('meeting_urls', '')
+    result = get_events(date_str, meeting_base_urls)
     
     if result["success"]:
         return jsonify(result)
@@ -101,7 +140,8 @@ def get_events_by_path(date_str):
 def get_today_events():
     """Get events for today"""
     today = datetime.now().strftime("%Y-%m-%d")
-    result = get_events(today)
+    meeting_base_urls = request.args.get('meeting_urls', '')
+    result = get_events(today, meeting_base_urls)
     
     if result["success"]:
         return jsonify(result)
@@ -120,13 +160,13 @@ if __name__ == '__main__':
     print("Starting Outlook Events API...")
     print("Available endpoints:")
     print("  GET /health - Health check")
-    print("  GET /events?date=YYYY-MM-DD - Get events by query parameter")
-    print("  GET /events/YYYY-MM-DD - Get events by URL path")
-    print("  GET /events/today - Get today's events")
+    print("  GET /events?date=YYYY-MM-DD&meeting_urls=url1,url2 - Get events by query parameter")
+    print("  GET /events/YYYY-MM-DD?meeting_urls=url1,url2 - Get events by URL path")
+    print("  GET /events/today?meeting_urls=url1,url2 - Get today's events")
     print()
     print("Example usage:")
-    print("  http://localhost:5000/events?date=2025-08-18")
-    print("  http://localhost:5000/events/2025-08-18")
+    print("  http://localhost:5000/events?date=2025-08-18&meeting_urls=https://teams.microsoft.com,https://zoom.us")
+    print("  http://localhost:5000/events/2025-08-18?meeting_urls=https://meet.google.com")
     print("  http://localhost:5000/events/today")
     print()
     
