@@ -11,9 +11,9 @@ A Logseq plugin that fetches events from your local Outlook calendar and inserts
 - ⏱️ Calculates and displays event duration
 - 🏷️ Uses Logseq properties for structured data
 - 🔃 Shows recurring event indicator
-- 🔗 **NEW**: Automatically detects and creates meeting links
-- ⚙️ **NEW**: Fully configurable through Logseq plugin settings
-- 📋 **NEW**: Customizable output format templates
+- 🔗 Automatically detects and creates meeting links
+- ⚙️ Fully configurable through Logseq plugin settings
+- 📋 Customizable output format templates
 
 ## Components
 
@@ -34,39 +34,46 @@ A local Flask API service that connects to your Outlook installation and retriev
 
 ### Step 1: Set up the Python API Service
 
-1. Save the `outlook_events_api.py` file to a directory of your choice
+1. Save the `outlook_events_api.py` and `requirements.txt` files to a directory of your choice
 
-2. Install required Python packages:
+2. **(Optional but Recommended) Create a virtual environment:**
+   
+   A virtual environment isolates this project's Python dependencies from your system-wide Python installation. This prevents version conflicts with other Python projects and keeps your system clean.
+   
    ```bash
-   pip install flask pywin32
+   # Create virtual environment
+   python -m venv outlook-events-env
+   
+   # Activate virtual environment
+   # On Windows:
+   outlook-events-env\Scripts\activate
+   
+   # On macOS/Linux:
+   source outlook-events-env/bin/activate
+   ```
+   
+   When the virtual environment is active, you'll see `(outlook-events-env)` in your command prompt.
+
+3. Install required Python packages:
+   ```bash
+   pip install -r requirements.txt
    ```
 
-3. Start the API service:
+4. Start the API service:
    ```bash
    python outlook_events_api.py
    ```
    
    The service will start on `http://localhost:5000`
 
+**Note:** If you created a virtual environment, remember to activate it (`outlook-events-env\Scripts\activate` on Windows) each time before running the API service.
+
 ### Step 2: Install the Logseq Plugin
 
 1. Create a new folder in your Logseq plugins directory (usually `~/.logseq/plugins/`)
 2. Name the folder something like `outlook-events-plugin`
 3. Copy the `main.js` file into this folder
-4. Create a `package.json` file in the same folder:
-   ```json
-   {
-     "name": "outlook-events-plugin",
-     "version": "1.0.0",
-     "description": "Fetch Outlook calendar events into Logseq",
-     "main": "main.js",
-     "logseq": {
-       "id": "outlook-events-plugin",
-       "title": "Outlook Events Plugin"
-     }
-   }
-   ```
-5. Restart Logseq or reload plugins
+45. Restart Logseq or reload plugins
 
 ## Usage
 
@@ -103,22 +110,22 @@ Where:
 
 ## Configuration
 
-The plugin is now fully configurable through Logseq's plugin settings. Access settings via:
+The plugin is fully configurable through Logseq's plugin settings. Access settings via:
 **Settings → Plugins → Outlook Events Plugin**
 
 ### Available Settings
 
-#### **Exclude User Name**
-- **Description**: Enter your name to exclude it from attendees lists
+#### **Excluded User Name**
+- **Description**: Enter your name as it is returned by Outlook to exclude it from attendees lists
 - **Default**: Empty (no exclusion)
-- **Example**: `"Smith, John"` or `"Jane Doe"`
+- **Example**: `"Simpson, Homer"` or `"Diana Prince"`
 
 #### **API URL**
 - **Description**: URL of the Outlook Events API service
 - **Default**: `http://localhost:5000`
 - **Usage**: Change if running the API on a different port or machine
 
-#### **Add Double Brackets to Event Titles**
+#### **Add Double Brackets to Event Titles to create/add page references**
 - **Options**: 
   - `all` - Add brackets to all event titles
   - `recurring` - Only add brackets to recurring events
@@ -143,7 +150,7 @@ The plugin is now fully configurable through Logseq's plugin settings. Access se
 - **Default**: `{subject}\nevent-time:: {time}\nevent-duration:: {duration}\nattendees:: {attendees}`
 - **Available Variables**:
   - `{subject}` - Event title (with brackets, emoji, and meeting links)
-  - `{time}` - Start time in 12-hour format
+  - `{time}` - Start time in 12-hour or 24-hour format
   - `{duration}` - Event duration in HH:MM:SS format
   - `{attendees}` - Formatted attendee list
   - `{location}` - Event location
@@ -177,7 +184,7 @@ The plugin is now fully configurable through Logseq's plugin settings. Access se
 The plugin automatically scans event descriptions for meeting links and adds clickable "Join Meeting" links to event titles. 
 
 **How it works:**
-1. Configure the meeting base URLs in settings (e.g., `https://teams.microsoft.com,https://zoom.us`)
+1. Configure the meeting base URLs in settings (e.g., `https://teams.microsoft.com/l/meetup-join`)
 2. The plugin searches event descriptions for URLs starting with these base URLs
 3. Found links are added as `[Join Meeting](URL)` next to the event title
 4. Multiple links are numbered: `[Join Meeting 1](URL1) [Join Meeting 2](URL2)`
@@ -195,7 +202,7 @@ Examples:
 ```
 http://localhost:5000/events/2025-08-19
 http://localhost:5000/events/today
-http://localhost:5000/events/2025-08-19?meeting_urls=https://teams.microsoft.com,https://zoom.us
+http://localhost:5000/events/2025-08-19?meeting_urls=https://teams.microsoft.com/l/meetup-join
 ```
 
 ## Advanced Customization
@@ -275,7 +282,7 @@ The plugin logs detailed information to the browser console. Open Developer Tool
 
 ### Time Handling
 
-- Events are fetched in Eastern Time (Outlook's local timezone)
+- Events are fetched in Outlook's local timezone
 - Times are displayed in either 12-hour format (9:00 AM) or 24-hour format (09:00) based on plugin settings
 - Duration is always calculated and displayed as HH:MM:SS format
 
@@ -305,20 +312,8 @@ The Python service uses regular expressions to find URLs in event descriptions t
 
 ## License
 
-This project is provided as-is for personal use. Modify and distribute according to your needs.
+This project is available under GNU General Public License version 3.
 
 ## Contributing
 
 Feel free to submit issues, improvements, or feature requests. This is a personal project but contributions are welcome.
-
-## Changelog
-
-### Version 2.0
-- Added comprehensive plugin settings configuration
-- Implemented meeting link detection and automatic link creation
-- Added customizable output format templates
-- Added support for child blocks in templates
-- Added configurable attendee name exclusion
-- Added recurring event indicators
-- Added bracket settings for creating page links
-- Improved error handling and debug logging

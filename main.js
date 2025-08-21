@@ -409,8 +409,8 @@ const main = async () => {
       key: "excludeUserName",
       type: "string",
       default: "",
-      title: "Exclude User Name",
-      description: "Enter your name to exclude it from the attendees list (e.g., 'Martin, David' or 'John Smith')"
+      title: "Excluded User Name",
+      description: "Enter your name as it is returned by Outlook to exclude it from attendees lists (e.g., 'Simpson, Homer' or 'Diana Prince')"
     },
     {
       key: "apiUrl",
@@ -424,7 +424,7 @@ const main = async () => {
       type: "enum",
       default: "none",
       title: "Add Double Brackets to Event Titles",
-      description: "Choose when to add [[double brackets]] around event subjects to create Logseq page links",
+      description: "Choose when to add [[double brackets]] around event subjects to create Logseq page links\n\nOptions:\n- all: Add brackets to all event titles\n- recurring: Only add brackets to recurring events\n- none: No brackets (default)",
       enumChoices: ["all", "recurring", "none"],
       enumPicker: "select"
     },
@@ -450,7 +450,7 @@ const main = async () => {
       inputAs: "textarea",
       default: "{subject}\\nevent-time:: {time}\\nevent-duration:: {duration}\\nattendees:: {attendees}",
       title: "Output Format Template",
-      description: "Customize the format of event blocks. Available variables: {subject}, {time}, {duration}, {attendees}, {location}, {description}. Use \\n for new lines. Use ---CHILD--- to create child blocks."
+      description: "Customize the format of event blocks. Available variables:\n\n{subject}, {time}, {duration}, {attendees}, {location}, {description}\n\nAdd ---CHILD--- to start a new child blocks."
     },
     {
       key: "includeEmptyFields",
