@@ -23,6 +23,10 @@ The main plugin that runs within Logseq and provides the `/Get Events` slash com
 ### 2. API Service (`outlook_events_api.py`)
 A local Flask API service that connects to your Outlook installation and retrieves calendar events.
 
+### 3. Service Management Scripts
+- `start_api_service.bat` - Starts the API service in background
+- `launch_api.vbs` - VBScript for silent startup (used with Task Scheduler)
+
 ## Prerequisites
 
 - **Logseq** installed and running
@@ -32,56 +36,196 @@ A local Flask API service that connects to your Outlook installation and retriev
 
 ## Installation
 
-### Step 1: Set up the Python API Service
+### Step 1: Set up Project Files
 
-1. Save the `outlook_events_api.py` and `requirements.txt` files to a directory of your choice
+1. **Create the plugin directory:**
+   - Open your Logseq graph/workspace folder (where your pages and journals are stored)
+   - Create a new folder named `logseq-get-outlook-events` in the root of your Logseq directory
+   - This keeps all plugin files organized together in your workspace
+
+2. **Copy all project files to the plugin directory:**
+   - `main.js` (Logseq plugin)
+   - `outlook_events_api.py` (API service)
+   - `requirements.txt` (Python dependencies)
+   - `start_api_service.bat` (Service management script)
+   - Any other related files
+
+   Your folder structure should look like:
+   ```
+   YourLogseqWorkspace/
+   ├── pages/
+   ├── journals/
+   ├── outlook-events-plugin/
+   │   ├── main.js
+   │   ├── outlook_events_api.py
+   │   ├── requirements.txt
+   │   ├── start_api_service.bat
+   │   └── (other plugin files)
+   └── (other Logseq files)
+   ```
+
+### Step 2: Set up the Python API Service
+
+1. **Open the Command Prompt and navigate to the plugin directory:**
+   ```bash
+   cd YourLogseqWorkspace\logseq-get-outlook-events
+   ```
 
 2. **(Optional but Recommended) Create a virtual environment:**
    
    A virtual environment isolates this project's Python dependencies from your system-wide Python installation. This prevents version conflicts with other Python projects and keeps your system clean.
    
    ```bash
-   # Create virtual environment
-   python -m venv outlook-events-env
+   # Create virtual environment in the plugin directory
+   python -m venv .venv
    
    # Activate virtual environment
-   # On Windows:
-   outlook-events-env\Scripts\activate
-   
-   # On macOS/Linux:
-   source outlook-events-env/bin/activate
+   .venv\Scripts\activate
+
    ```
    
-   When the virtual environment is active, you'll see `(outlook-events-env)` in your command prompt.
+   When the virtual environment is active, you'll see `(.venv)` in your command prompt.
 
-3. Install required Python packages:
+3. **Install required Python packages:**
    ```bash
    pip install -r requirements.txt
    ```
 
-4. Start the API service:
+4. **Test the API service:**
    ```bash
    python outlook_events_api.py
    ```
    
-   The service will start on `http://localhost:5000`
+   The service will start on `http://localhost:5000`. Press `Ctrl+C` to stop it for now.
 
-**Note:** If you created a virtual environment, remember to activate it (`outlook-events-env\Scripts\activate` on Windows) each time before running the API service.
+**Note:** If you created a virtual environment, the `start_api_service.bat` script will automatically use it. For manual starts, remember to activate it (`.venv\Scripts\activate`) each time.
 
-### Step 2: Install the Logseq Plugin
+### Step 3: Install the Logseq Plugin
 
-1. Create a new folder in your Logseq plugins directory (usually `~/.logseq/plugins/`)
-2. Name the folder something like `outlook-events-plugin`
-3. Copy the `main.js` file into this folder
-45. Restart Logseq or reload plugins
+1. **Enable the plugin in Logseq:**
+   - Open Logseq
+   - Go to Settings → Plugins
+   - Click "Load unpacked plugin"
+   - Navigate to and select your `logseq-get-outlook-events` folder
+   - The plugin should now appear in your plugins list
+
+### Step 4: (Optional) Set up Automatic API Service Startup
+
+For convenience, you can configure the API service to start automatically when you log into Windows using Task Scheduler.
+
+#### Configure Task Scheduler
+
+1. **Open Task Scheduler:**
+   - Press `Win + R`, type `taskschd.msc`, and press Enter
+   - Or search for "Task Scheduler" in the Start menu
+
+2. **Create a new task:**
+   - In the right panel, click "Create Task..." (not "Create Basic Task")
+
+3. **General Tab:**
+   - Name: `Outlook Events API Service`
+   - Description: `Automatically starts the Outlook Events API service for Logseq plugin`
+   - Check "Run only when user is logged on"
+   - Check "Run with highest privileges" (recommended for COM access)
+
+4. **Triggers Tab:**
+   - Click "New..."
+   - Begin the task: "At log on"
+   - Settings: "Specific user" (should show your username)
+   - Check "Delay task for: 30 seconds" (gives system time to fully load)
+   - Click "OK"
+
+5. **Actions Tab:**
+   - Click "New..."
+   - Action: "Start a program"
+   - Program/script: `cmd.exe`
+   - Add arguments: `/c "C:\path\to\your\logseq\workspace\logseq-get-outlook-events\launch_api.vbs"` (replace with actual path)
+   - Click "OK"
+
+6. **Conditions Tab:**
+   - Uncheck all boxes
+
+7. **Settings Tab:**
+   - Check "Allow task to be run on demand"
+   - Check "If the task fails, restart every" and select 1 minute and 3 attempts in the dropdowns 
+   - Check "If the running task does not end when requested, force it to stop"
+   - Set "If task is already running, then the following rule applies" to "Do not start a new instance"
+   - Click "OK"
+
+8. **Save the Task**
+   - Click "OK"
+
+8. **Test the scheduled task:**
+   - Right-click on your new task in the Task Scheduler Library
+   - Select "Run" to test it
+   - Check if the API service starts by visiting [`http://localhost:5000/health`](http://localhost:5000/health) in your browser.  You should get the following response:
+   ```json
+   { 
+   "outlook_status": "running",
+   "service": "Outlook Events API",
+   "status": "healthy" 
+   }
+   ```
+   - You can then check that the service is also returning events from your calendar by visiting [`http://localhost:5000/events/{date}`](http://localhost:5000/events/{date}), but replace "{date}" with a day you know you have an event on your calendar. The response should look something like this:
+   ```json
+   {
+   "date": "2025-08-21",
+   "events": [
+      {
+         "attendees": [
+         "Name, Your",
+         "Simpson, Homer"
+         ],
+         "description": "Agenda: \n\r Review current safety procedures for plant shutdown.",
+         "end": "2025-08-21 15:30:00+00:00",
+         "isRecurring": true,
+         "location": "Microsoft Teams Meeting",
+         "meetingLinks": [],
+         "start": "2025-08-21 15:00:00+00:00",
+         "subject": "Homer Touchbase"
+      }
+   ],
+   "success": true
+   }
+   ```
+
+#### Verify Automatic Startup
+
+After setting up the scheduled task:
+
+1. **Restart your computer** to test automatic startup
+2. **Wait about 1-2 minutes** after logging in (allow time for the delayed start)
+3. **Test the service** by opening a web browser and going to [`http://localhost:5000/health`](http://localhost:5000/health)
+4. You should see:
+```json
+   { 
+   "outlook_status": "running",
+   "service": "Outlook Events API",
+   "status": "healthy" 
+   }
+   ```
+
+#### Managing the Automatic Service
+
+- **To disable automatic startup:** Open Task Scheduler, find your task, right-click and select "Disable"
+- **To modify the startup delay:** Edit the task, go to Triggers tab, and change the delay time
+- **To stop the service manually:** Use the provided `stop_api_service.bat` file
 
 ## Usage
 
 ### Starting the Services
 
+**If you set up automatic startup:** The API service should start automatically when you log in. Just open Logseq and start using the plugin.
+
+**If you prefer manual startup:**
+
 1. **Start the Python API service first:**
    ```bash
+   # Option 1: Direct command
    python outlook_events_api.py
+   
+   # Option 2: Using the batch file (runs in background)
+   start_api_service.bat
    ```
    Keep this running while using the plugin.
 
@@ -100,7 +244,7 @@ Each event is inserted as a block with the following default format:
 Event Title 🔃 [Join Meeting](https://teams.microsoft.com/l/meetup-join/...)
 event-time:: 9:00 AM
 event-duration:: 01:00:00
-attendees:: [John Doe], [Jane Smith]
+attendees:: [Homer Simpson], [Diana Prince]
 ```
 
 Where:
@@ -111,7 +255,7 @@ Where:
 ## Configuration
 
 The plugin is fully configurable through Logseq's plugin settings. Access settings via:
-**Settings → Plugins → Outlook Events Plugin**
+**Settings → Plugins → Get Outlook Events**
 
 ### Available Settings
 
@@ -250,6 +394,7 @@ Recurring events are automatically identified and marked with a 🔃 emoji. You 
    - Ensure the Python API service is running
    - Check that you're on a journal page (daily note)
    - Verify events exist in Outlook for that date
+   - Occasionaly the API service disconnects from the Outlook COM.  Stopping and restarting the service should correct the issue
 
 2. **API connection errors:**
    - Confirm the Python service is running on localhost:5000
@@ -271,12 +416,15 @@ Recurring events are automatically identified and marked with a 🔃 emoji. You 
    - Ensure `\n` is used for line breaks, not actual newlines
    - Verify template variable names are spelled correctly
 
+6. **Automatic startup not working:**
+   - Check Task Scheduler to ensure the task is enabled and configured correctly
+   - Verify the path to `launch_api.vbs` is correct in the scheduled task
+   - Try running the scheduled task manually to test it
+   - Check Windows Event Viewer for any error messages related to the task
+
 ### Debug Information
 
-The plugin logs detailed information to the browser console. Open Developer Tools (F12) to view debug output including:
-- API requests and responses
-- Event processing details
-- Template rendering information
+The plugin logs detailed information to Logseq's console. Open Developer Tools (CTRL + Shift + i) to view debug output.
 
 ## Technical Details
 
@@ -302,6 +450,14 @@ The Python service uses regular expressions to find URLs in event descriptions t
 - Various URL formats and parameters
 - Cleaning up URLs (removing trailing punctuation)
 
+### Service Management
+
+The background service management system includes:
+- **Process detection and PID tracking** for reliable service control
+- **Automatic cleanup** of stale process files
+- **Log rotation** to prevent log files from growing too large
+- **Silent background operation** using VBScript for Task Scheduler integration
+
 ## Security Notes
 
 - The API service only runs locally (localhost)
@@ -316,4 +472,4 @@ This project is available under GNU General Public License version 3.
 
 ## Contributing
 
-Feel free to submit issues, improvements, or feature requests. This is a personal project but contributions are welcome.
+Feel free to submit issues, improvements, or feature requests. This is a personal project but contributions are welcome through a GitHub Issues submittion or Pull Request at [https://github.com/DavidJayMartin/logseq-get-outlook-event](https://github.com/DavidJayMartin/logseq-get-outlook-event).
