@@ -5,8 +5,29 @@ import win32com.client
 import pythoncom
 import traceback
 import re
+import subprocess
+import time
 
 app = Flask(__name__)
+
+def is_outlook_running():
+    """Check if Outlook is currently running"""
+    try:
+        result = subprocess.run(['tasklist', '/FI', 'IMAGENAME eq OUTLOOK.EXE'], 
+                              capture_output=True, text=True)
+        return 'OUTLOOK.EXE' in result.stdout
+    except:
+        return False
+
+def start_outlook():
+    """Attempt to start Outlook"""
+    try:
+        subprocess.Popen(['outlook.exe'])
+        # Wait a moment for Outlook to start
+        time.sleep(3)
+        return True
+    except:
+        return False
 
 def extract_meeting_links(body_text, base_urls=None):
     """Extract meeting links from event body text"""
@@ -42,13 +63,111 @@ def extract_meeting_links(body_text, base_urls=None):
 def get_events(date_str, meeting_base_urls=None):
     """Get Outlook events for a specific date"""
     try:
-        # Initialize COM for this thread
-        pythoncom.CoInitialize()
+        # Initialize COM for this thread with security settings
+        pythoncom.CoInitializeEx(pythoncom.COINIT_APARTMENTTHREADED)
         
         # Parse date
         date = datetime.strptime(date_str, "%Y-%m-%d")
-        outlook = win32com.client.Dispatch("Outlook.Application").GetNamespace("MAPI")
-        calendar = outlook.GetDefaultFolder(9)  # olFolderCalendar
+        
+        # Check if Outlook is running
+        if not is_outlook_running():
+            print("Outlook is not running. Attempting to start...")
+            if not start_outlook():
+                return {"success": False, "error": "Outlook is not running and could not be started automatically. Please start Outlook manually and try again."}
+            
+            # Wait a bit more for Outlook to fully initialize
+            time.sleep(5)
+        
+        # Try different approaches to connect to Outlook
+        outlook = None
+        last_error = None
+        
+        # Method 1: Try direct dispatch first
+        try:
+            print("Attempting direct Outlook connection...")
+            outlook = win32com.client.Dispatch("Outlook.Application")
+            outlook = outlook.GetNamespace("MAPI")
+            print("✓ Direct connection successful")
+        except Exception as e:
+            last_error = e
+            print(f"✗ Direct connection failed: {e}")
+        
+        # Method 2: Try GetActiveObject (connects to existing instance)
+        if outlook is None:
+            try:
+                print("Attempting to connect to existing Outlook instance...")
+                outlook_app = win32com.client.GetActiveObject("Outlook.Application")
+                outlook = outlook_app.GetNamespace("MAPI")
+                print("✓ Connection to existing instance successful")
+            except Exception as e:
+                last_error = e
+                print(f"✗ Connection to existing instance failed: {e}")
+        
+        # Method 3: Try with explicit CLSID
+        if outlook is None:
+            try:
+                print("Attempting connection with explicit CLSID...")
+                outlook_app = win32com.client.Dispatch("{0006F03A-0000-0000-C000-000000000046}")
+                outlook = outlook_app.GetNamespace("MAPI")
+                print("✓ CLSID connection successful")
+            except Exception as e:
+                last_error = e
+                print(f"✗ CLSID connection failed: {e}")
+        
+        if outlook is None:
+            # Provide detailed error information
+            error_code = getattr(last_error, 'hresult', None) if last_error else None
+            error_msg = str(last_error) if last_error else "Unknown error"
+            
+            if error_code == -2146959355:  # Server execution failed
+                return {
+                    "success": False, 
+                    "error": "Could not connect to Outlook COM interface. This usually indicates a permissions issue.",
+                    "solutions": [
+                        "Try running the API service as Administrator (right-click → Run as administrator)",
+                        "Close and restart Microsoft Outlook completely",
+                        "Restart the API service after restarting Outlook",
+                        "Check if Windows Defender or antivirus is blocking COM access"
+                    ],
+                    "technical_details": f"Error code: {error_code}, Message: {error_msg}"
+                }
+            elif error_code == -2147221021:  # Operation unavailable
+                return {
+                    "success": False, 
+                    "error": "Outlook COM interface is currently unavailable.",
+                    "solutions": [
+                        "Restart Microsoft Outlook",
+                        "Wait a few moments after starting Outlook before trying again",
+                        "Try running both Outlook and the API service as Administrator"
+                    ],
+                    "technical_details": f"Error code: {error_code}, Message: {error_msg}"
+                }
+            else:
+                return {
+                    "success": False, 
+                    "error": f"Failed to connect to Outlook after trying multiple methods.",
+                    "solutions": [
+                        "Run the API service as Administrator",
+                        "Restart both Outlook and the API service",
+                        "Check Windows Event Log for COM errors",
+                        "Verify Outlook is not in safe mode"
+                    ],
+                    "technical_details": f"Error code: {error_code}, Message: {error_msg}"
+                }
+        
+        try:
+            calendar = outlook.GetDefaultFolder(9)  # olFolderCalendar
+        except Exception as e:
+            return {
+                "success": False,
+                "error": "Connected to Outlook but could not access calendar folder.",
+                "solutions": [
+                    "Ensure Outlook has finished loading completely",
+                    "Check that you have a valid Exchange/IMAP account configured",
+                    "Try restarting Outlook and waiting for it to fully sync"
+                ],
+                "technical_details": str(e)
+            }
 
         # Filter appointments - use a broader range first
         begin = date.strftime("%m/%d/%Y 00:00 AM")
@@ -107,7 +226,12 @@ def get_events(date_str, meeting_base_urls=None):
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
-    return jsonify({"status": "healthy", "service": "Outlook Events API"})
+    outlook_status = "running" if is_outlook_running() else "not running"
+    return jsonify({
+        "status": "healthy", 
+        "service": "Outlook Events API",
+        "outlook_status": outlook_status
+    })
 
 @app.route('/events', methods=['GET'])
 def get_events_api():
@@ -159,7 +283,7 @@ def internal_error(error):
 if __name__ == '__main__':
     print("Starting Outlook Events API...")
     print("Available endpoints:")
-    print("  GET /health - Health check")
+    print("  GET /health - Health check (includes Outlook status)")
     print("  GET /events?date=YYYY-MM-DD&meeting_urls=url1,url2 - Get events by query parameter")
     print("  GET /events/YYYY-MM-DD?meeting_urls=url1,url2 - Get events by URL path")
     print("  GET /events/today?meeting_urls=url1,url2 - Get today's events")
@@ -168,6 +292,12 @@ if __name__ == '__main__':
     print("  http://localhost:5000/events?date=2025-08-18&meeting_urls=https://teams.microsoft.com,https://zoom.us")
     print("  http://localhost:5000/events/2025-08-18?meeting_urls=https://meet.google.com")
     print("  http://localhost:5000/events/today")
+    print()
+    print("Checking Outlook status...")
+    if is_outlook_running():
+        print("✓ Outlook is currently running")
+    else:
+        print("⚠ Outlook is not running - it will be started automatically when needed")
     print()
     
     # Run the Flask app
