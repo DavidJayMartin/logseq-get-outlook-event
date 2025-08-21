@@ -1,16 +1,25 @@
-﻿Tue 08/19/2025 16:20:33.46 - Starting script execution 
-Tue 08/19/2025 16:20:34.06 - Virtual environment activated successfully 
-Tue 08/19/2025 16:20:34.06 - Starting Python script: C:\Users\martin.1537\OneDrive - The Ohio State University\Digital Mind\logseq-get-outlook-event\outlook_events_api.py 
+﻿ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://172.27.164.36:5000
+Press CTRL+C to quit
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 874-311-592
+Thu 08/21/2025  8:58:49.48 - Virtual environment activated successfully 
+Thu 08/21/2025  8:58:49.60 - Starting Python script: C:\Users\martin.1537\OneDrive - The Ohio State University\Digital Mind\logseq-get-outlook-event\outlook_events_api.py 
+Thu 08/21/2025  9:00:50.17 - Virtual environment activated successfully 
+Thu 08/21/2025  9:00:50.30 - Starting Python script: C:\Users\martin.1537\OneDrive - The Ohio State University\Digital Mind\logseq-get-outlook-event\outlook_events_api.py 
+Thu 08/21/2025  9:10:05.29 - Starting API service in background 
 Starting Outlook Events API...
 Available endpoints:
   GET /health - Health check
-  GET /events?date=YYYY-MM-DD - Get events by query parameter
-  GET /events/YYYY-MM-DD - Get events by URL path
-  GET /events/today - Get today's events
+  GET /events?date=YYYY-MM-DD&meeting_urls=url1,url2 - Get events by query parameter
+  GET /events/YYYY-MM-DD?meeting_urls=url1,url2 - Get events by URL path
+  GET /events/today?meeting_urls=url1,url2 - Get today's events
 
 Example usage:
-  http://localhost:5000/events?date=2025-08-18
-  http://localhost:5000/events/2025-08-18
+  http://localhost:5000/events?date=2025-08-18&meeting_urls=https://teams.microsoft.com,https://zoom.us
+  http://localhost:5000/events/2025-08-18?meeting_urls=https://meet.google.com
   http://localhost:5000/events/today
 
  * Serving Flask app 'outlook_events_api'
@@ -18,84 +27,79 @@ Example usage:
 WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
  * Running on all addresses (0.0.0.0)
  * Running on http://127.0.0.1:5000
- * Running on http://192.168.0.38:5000
+ * Running on http://172.27.164.36:5000
 Press CTRL+C to quit
  * Restarting with stat
  * Debugger is active!
  * Debugger PIN: 874-311-592
-127.0.0.1 - - [19/Aug/2025 16:21:08] "GET /health HTTP/1.1" 200 -
-127.0.0.1 - - [19/Aug/2025 16:23:24] "GET /events/today HTTP/1.1" 400 -
-127.0.0.1 - - [19/Aug/2025 16:25:53] "GET /events/2025-08-18 HTTP/1.1" 400 -
-127.0.0.1 - - [19/Aug/2025 16:27:53] "GET /events/2025-08-19 HTTP/1.1" 400 -
- * Detected change in 'C:\\Users\\martin.1537\\OneDrive - The Ohio State University\\Digital Mind\\logseq-get-outlook-event\\outlook_events_api.py', reloading
-Starting Outlook Events API...
-Available endpoints:
-  GET /health - Health check
-  GET /events?date=YYYY-MM-DD - Get events by query parameter
-  GET /events/YYYY-MM-DD - Get events by URL path
-  GET /events/today - Get today's events
-
-Example usage:
-  http://localhost:5000/events?date=2025-08-18
-  http://localhost:5000/events/2025-08-18
-  http://localhost:5000/events/today
-
- * Restarting with stat
- * Debugger is active!
- * Debugger PIN: 874-311-592
-127.0.0.1 - - [19/Aug/2025 16:32:38] "GET /events/2025-08-18 HTTP/1.1" 400 -
-127.0.0.1 - - [19/Aug/2025 16:36:27] "GET /events/2025-08-18 HTTP/1.1" 400 -
- * Detected change in 'C:\\Users\\martin.1537\\OneDrive - The Ohio State University\\Digital Mind\\logseq-get-outlook-event\\outlook_events_api.py', reloading
-Starting Outlook Events API...
-Available endpoints:
-  GET /health - Health check
-  GET /events?date=YYYY-MM-DD - Get events by query parameter
-  GET /events/YYYY-MM-DD - Get events by URL path
-  GET /events/today - Get today's events
-
-Example usage:
-  http://localhost:5000/events?date=2025-08-18
-  http://localhost:5000/events/2025-08-18
-  http://localhost:5000/events/today
-
-Starting get_events for date: 2025-08-18
-COM initialized
-Parsed date: 2025-08-18 00:00:00
-Connecting to Outlook...
-Exception: (-2146959355, 'Server execution failed', None, None)
-COM uninitialized
-Starting get_events for date: 2025-08-18
-COM initialized
-Parsed date: 2025-08-18 00:00:00
-Connecting to Outlook...
-Exception: (-2146959355, 'Server execution failed', None, None)
-COM uninitialized
- * Restarting with stat
- * Debugger is active!
- * Debugger PIN: 874-311-592
-127.0.0.1 - - [19/Aug/2025 16:45:55] "GET /events/2025-08-18 HTTP/1.1" 400 -
-Wed 08/20/2025  9:06:06.73 - Starting script execution 
-Wed 08/20/2025  9:06:07.41 - Virtual environment activated successfully 
-Wed 08/20/2025  9:06:07.41 - Starting Python script: C:\Users\martin.1537\OneDrive - The Ohio State University\Digital Mind\logseq-get-outlook-event\outlook_events_api.py 
-Starting Outlook Events API...
-Available endpoints:
-  GET /health - Health check
-  GET /events?date=YYYY-MM-DD - Get events by query parameter
-  GET /events/YYYY-MM-DD - Get events by URL path
-  GET /events/today - Get today's events
-
-Example usage:
-  http://localhost:5000/events?date=2025-08-18
-  http://localhost:5000/events/2025-08-18
-  http://localhost:5000/events/today
-
- * Serving Flask app 'outlook_events_api'
- * Debug mode: on
-WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
- * Running on all addresses (0.0.0.0)
- * Running on http://127.0.0.1:5000
- * Running on http://192.168.0.38:5000
-Press CTRL+C to quit
- * Restarting with stat
- * Debugger is active!
- * Debugger PIN: 874-311-592
+127.0.0.1 - - [21/Aug/2025 09:12:51] "GET / HTTP/1.1" 404 -
+127.0.0.1 - - [21/Aug/2025 09:14:03] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [21/Aug/2025 09:14:07] "GET /events/2025-08-21 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Aug/2025 09:20:01] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [21/Aug/2025 09:21:02] "GET /health HTTP/1.1" 200 -
+Thu 08/21/2025  9:22:29.95 - Starting API service in background
+Thu 08/21/2025  9:26:35.22 - Starting API service in background
+Thu 08/21/2025  9:27:55.01 - Starting API service in background
+Thu 08/21/2025  9:28:43.63 - Starting API service in background 
+Thu 08/21/2025  9:29:39.43 - Starting API service in background
+Thu 08/21/2025  9:50:40.16 - Starting API service in background
+Thu 08/21/2025 10:00:37.19 - Starting API service in background
+Thu 08/21/2025 10:02:59.88 - Starting API service in background
+Thu 08/21/2025 10:06:02.22 - Starting API service in background
+Thu 08/21/2025 10:14:14.25 - Starting API service in background
+8/21/2025 10:14:14 AM - Launching Python API service
+8/21/2025 10:14:14 AM - Command: cmd /c ""C:\Users\martin.1537\OneDrive - The Ohio State University\Digital Mind\logseq-get-outlook-event\.venv\Scripts\python.exe" "C:\Users\martin.1537\OneDrive - The Ohio State University\Digital Mind\logseq-get-outlook-event\outlook_events_api.py"" >> "C:\Users\martin.1537\OneDrive - The Ohio State University\Digital Mind\logseq-get-outlook-event\logfile.log" 2>>&1
+8/21/2025 10:14:14 AM - Command sent to shell
+Thu 08/21/2025 10:15:55.70 - Starting API service in background
+8/21/2025 10:15:55 AM - Launching Python API service
+8/21/2025 10:15:56 AM - Command: "C:\Users\martin.1537\OneDrive - The Ohio State University\Digital Mind\logseq-get-outlook-event\.venv\Scripts\python.exe" "C:\Users\martin.1537\OneDrive - The Ohio State University\Digital Mind\logseq-get-outlook-event\outlook_events_api.py"
+8/21/2025 10:15:56 AM - Command sent to shell
+Thu 08/21/2025 10:16:07.29 - API service started with PID 12980
+Thu 08/21/2025 10:17:38.20 - API service stopped (PID 12980)
+Thu 08/21/2025 10:35:24.43 - Starting API service in background
+8/21/2025 10:35:24 AM - Launching Python API service
+8/21/2025 10:35:24 AM - Command: "C:\Users\martin.1537\OneDrive - The Ohio State University\Digital Mind\logseq-get-outlook-event\.venv\Scripts\python.exe" "C:\Users\martin.1537\OneDrive - The Ohio State University\Digital Mind\logseq-get-outlook-event\outlook_events_api.py"
+8/21/2025 10:35:24 AM - Command sent to shell
+Thu 08/21/2025 10:35:35.34 - API service started with PID 5844
+Thu 08/21/2025 10:36:56.60 - API service stopped (PID 5844)
+Thu 08/21/2025 10:37:30.89 - Starting API service in background
+8/21/2025 10:37:31 AM - Launching Python API service
+8/21/2025 10:37:31 AM - Command: "C:\Users\martin.1537\OneDrive - The Ohio State University\Digital Mind\logseq-get-outlook-event\.venv\Scripts\python.exe" "C:\Users\martin.1537\OneDrive - The Ohio State University\Digital Mind\logseq-get-outlook-event\outlook_events_api.py"
+8/21/2025 10:37:31 AM - Command sent to shell
+Thu 08/21/2025 10:37:42.53 - API service started with PID 22504
+Thu 08/21/2025 10:38:19.82 - API service stopped (PID 22504)
+Thu 08/21/2025 10:48:37.33 - Starting API service in background
+8/21/2025 10:48:37 AM - Launching Python API service
+8/21/2025 10:48:37 AM - Command: "C:\Users\martin.1537\OneDrive - The Ohio State University\Digital Mind\logseq-get-outlook-event\.venv\Scripts\python.exe" "C:\Users\martin.1537\OneDrive - The Ohio State University\Digital Mind\logseq-get-outlook-event\outlook_events_api.py"
+8/21/2025 10:48:38 AM - Command sent to shell
+Thu 08/21/2025 10:48:52.52 - API service started with PID 24904
+Thu 08/21/2025 11:07:43.29 - Virtual environment activated successfully 
+Thu 08/21/2025 11:07:43.78 - Starting Python script: C:\Users\martin.1537\OneDrive - The Ohio State University\Digital Mind\logseq-get-outlook-event\outlook_events_api.py 
+Thu 08/21/2025 11:08:23.49 - Starting API service in background
+8/21/2025 11:08:24 AM - Launching Python API service
+8/21/2025 11:08:24 AM - Command: "C:\Users\martin.1537\OneDrive - The Ohio State University\Digital Mind\logseq-get-outlook-event\.venv\Scripts\python.exe" "C:\Users\martin.1537\OneDrive - The Ohio State University\Digital Mind\logseq-get-outlook-event\outlook_events_api.py"
+8/21/2025 11:08:24 AM - Command sent to shell
+Thu 08/21/2025 11:08:40.58 - API service started with PID 24216
+Thu 08/21/2025 11:19:18.42 - API service stopped (PID 24216)
+Thu 08/21/2025 11:20:25.39 - ERROR: Python script failed with error code 1 
+Thu 08/21/2025 11:20:42.13 - Starting API service in background
+8/21/2025 11:20:42 AM - Launching Python API service
+8/21/2025 11:20:42 AM - Command: "C:\Users\martin.1537\OneDrive - The Ohio State University\Digital Mind\logseq-get-outlook-event\.venv\Scripts\python.exe" "C:\Users\martin.1537\OneDrive - The Ohio State University\Digital Mind\logseq-get-outlook-event\outlook_events_api.py"
+8/21/2025 11:20:42 AM - Command sent to shell
+Thu 08/21/2025 11:20:53.40 - API service started with PID 21840
+Thu 08/21/2025 11:30:04.91 - API service stopped (PID 21840)
+Thu 08/21/2025 11:35:03.06 - Starting API service in background
+8/21/2025 11:35:03 AM - Launching Python API service
+8/21/2025 11:35:03 AM - Command: "C:\Users\martin.1537\OneDrive - The Ohio State University\Digital Mind\logseq-get-outlook-event\.venv\Scripts\python.exe" "C:\Users\martin.1537\OneDrive - The Ohio State University\Digital Mind\logseq-get-outlook-event\outlook_events_api.py"
+8/21/2025 11:35:03 AM - Command sent to shell
+Thu 08/21/2025 11:35:17.83 - API service started with PID 22876
+Thu 08/21/2025 11:43:47.28 - Starting API service in background
+8/21/2025 11:43:47 AM - Launching Python API service
+8/21/2025 11:43:47 AM - Command: "C:\Users\martin.1537\OneDrive - The Ohio State University\Digital Mind\logseq-get-outlook-event\.venv\Scripts\python.exe" "C:\Users\martin.1537\OneDrive - The Ohio State University\Digital Mind\logseq-get-outlook-event\outlook_events_api.py"
+8/21/2025 11:43:48 AM - Command sent to shell
+Thu 08/21/2025 11:43:59.92 - API service started with PID 17112
+Thu 08/21/2025 12:23:52.71 - Starting API service in background
+8/21/2025 12:23:53 PM - Launching Python API service
+8/21/2025 12:23:53 PM - Command: "C:\Users\martin.1537\OneDrive - The Ohio State University\Digital Mind\logseq-get-outlook-event\.venv\Scripts\python.exe" "C:\Users\martin.1537\OneDrive - The Ohio State University\Digital Mind\logseq-get-outlook-event\outlook_events_api.py"
+8/21/2025 12:23:53 PM - Command sent to shell
+Thu 08/21/2025 12:24:05.34 - API service started with PID 3408
