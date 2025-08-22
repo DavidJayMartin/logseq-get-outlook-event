@@ -8,6 +8,6 @@
   "logseq": {
     "id": "logseq-plugin-get-outlook-events",
     "title": "Get Outlook Events",
-    "icon": "get_outlook_events.png"
+    "icon": "get-outlook-events.ico"
   }
 }
