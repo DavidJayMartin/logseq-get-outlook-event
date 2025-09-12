@@ -276,6 +276,11 @@ The plugin is fully configurable through Logseq's plugin settings. Access settin
   - `none` - No brackets (default)
 - **Purpose**: Creates Logseq page links for events
 
+- **Add Double Brackets to Attendee Names**: Choose whether to add [[double brackets]] around attendee names to create Logseq page links
+  - `all`: Add brackets to all attendee names (default)
+  - `none`: No brackets
+- **Purpose**: Creates Logseq page links for event attendees
+
 #### **Time Format**
 - **Options**: 
   - `12` - 12-hour format with AM/PM (e.g., 9:00 AM, 2:30 PM)

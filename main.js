@@ -263,7 +263,7 @@ function formatEventContent(event) {
 
 /**
  * @param {Array} attendees - Array of attendee names
- * @returns {string} - Comma-separated list with each name in square brackets
+ * @returns {string} - Comma-separated list with each name in square brackets if the confiuration is selected
  */
 function formatAttendees(attendees) {
   if (!attendees || attendees.length === 0) {
@@ -273,12 +273,18 @@ function formatAttendees(attendees) {
   // Get the user's configured name to exclude
   const excludeName = logseq.settings?.excludeUserName || "";
   
+  // Get the bracketing setting
+  const bracketSetting = logseq.settings?.bracketAttendees || "all";
+  
   // Filter out the user's name if configured
   const filteredAttendees = excludeName 
     ? attendees.filter(name => name !== excludeName)
     : attendees;
   
-  return filteredAttendees.map(name => `[${name}]`).join(", ");
+  // Format names based on bracket setting
+  return filteredAttendees
+    .map(name => bracketSetting === "all" ? `[[${name}]]` : name)
+    .join(", ");
 }
 
 /**
@@ -426,6 +432,15 @@ const main = async () => {
       title: "Add Double Brackets to Event Titles",
       description: "Choose when to add [[double brackets]] around event subjects to create Logseq page links\n\nOptions:\n- all: Add brackets to all event titles\n- recurring: Only add brackets to recurring events\n- none: No brackets (default)",
       enumChoices: ["all", "recurring", "none"],
+      enumPicker: "select"
+    },
+    {
+      key: "bracketAttendees",
+      type: "enum",
+      default: "all",
+      title: "Add Double Brackets to Attendee Names",
+      description: "Choose whether to add [[double brackets]] around attendee names to create Logseq page links",
+      enumChoices: ["all", "none"],
       enumPicker: "select"
     },
     {
