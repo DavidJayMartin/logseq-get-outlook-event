@@ -59,37 +59,98 @@ function formatDateForAPI(date) {
 }
 
 /**
- * Format time string to 12-hour or 24-hour format without timezone conversion
+ * Format datetime string using a custom format pattern
  * @param {string} timeString - Time string from Outlook (already in Eastern time)
- * @returns {string} - Formatted time string
+ * @returns {string} - Formatted datetime string according to user configuration
  */
 function formatTime(timeString) {
   // Parse the time string manually to avoid timezone conversion
   const date = new Date(timeString);
   
-  // Extract hours and minutes directly from the date object
+  // Extract components directly from the date object
   // Use UTC methods to avoid any local timezone adjustments
   const utcDate = new Date(date.getTime() + (date.getTimezoneOffset() * 60000));
-  let hours = utcDate.getHours();
+  
+  // Get the format pattern from settings
+  const formatPattern = logseq.settings?.timeFormat || "h:mm a";
+  
+  // Extract date components
+  const year = utcDate.getFullYear();
+  const month = utcDate.getMonth();
+  const day = utcDate.getDate();
+  const hours24 = utcDate.getHours();
+  const hours12 = hours24 % 12 || 12;
   const minutes = utcDate.getMinutes();
+  const seconds = utcDate.getSeconds();
+  const ampm = hours24 >= 12 ? 'PM' : 'AM';
+  const ampmLower = ampm.toLowerCase();
   
-  // Format minutes with leading zero if needed
-  const minutesStr = minutes < 10 ? '0' + minutes : minutes;
+  // Month names
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  const monthNamesShort = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ];
   
-  // Get time format setting (default to 12-hour)
-  const timeFormat = logseq.settings?.timeFormat || "12";
+  // Day names
+  const dayNames = [
+    'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
+  ];
+  const dayNamesShort = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   
-  if (timeFormat === "24") {
-    // 24-hour format
-    const hoursStr = hours < 10 ? '0' + hours : hours;
-    return `${hoursStr}:${minutesStr}`;
-  } else {
-    // 12-hour format
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    hours = hours % 12;
-    hours = hours ? hours : 12; // the hour '0' should be '12'
-    return `${hours}:${minutesStr} ${ampm}`;
-  }
+  // Format tokens and their replacements
+  const formatTokens = {
+    // Year
+    'YYYY': String(year),
+    'YY': String(year).slice(-2),
+    
+    // Month
+    'MMMM': monthNames[month],
+    'MMM': monthNamesShort[month],
+    'MM': String(month + 1).padStart(2, '0'),
+    'M': String(month + 1),
+    
+    // Day of month
+    'DD': String(day).padStart(2, '0'),
+    'D': String(day),
+    
+    // Day of week
+    'dddd': dayNames[utcDate.getDay()],
+    'ddd': dayNamesShort[utcDate.getDay()],
+    
+    // Hour (24-hour)
+    'HH': String(hours24).padStart(2, '0'),
+    'H': String(hours24),
+    
+    // Hour (12-hour)
+    'hh': String(hours12).padStart(2, '0'),
+    'h': String(hours12),
+    
+    // Minutes
+    'mm': String(minutes).padStart(2, '0'),
+    'm': String(minutes),
+    
+    // Seconds
+    'ss': String(seconds).padStart(2, '0'),
+    's': String(seconds),
+    
+    // AM/PM
+    'A': ampm,
+    'a': ampmLower
+  };
+  
+  // --- START OF FIX ---
+  // Create a single regex that matches any of the tokens, longest first.
+  const sortedTokens = Object.keys(formatTokens).sort((a, b) => b.length - a.length);
+  const regex = new RegExp(sortedTokens.join('|'), 'g');
+
+  // Use the .replace() method with a replacer function.
+  // This finds all tokens in one pass and replaces them with their corresponding values.
+  return formatPattern.replace(regex, (match) => formatTokens[match]);
+  // --- END OF FIX ---
 }
 
 /**
@@ -366,7 +427,7 @@ async function getEvents(e) {
     console.log('Events sorted by start time');
     
     // Insert in reverse order with before: true to get chronological order
-    for (let i = sortedEvents.length - 1; i >= 0; i--) {
+    for (let i = 0; i < sortedEvents.length; i++) {
       const event = sortedEvents[i];
       console.log(`Processing event ${i + 1}:`, event.subject);
       
@@ -445,12 +506,10 @@ const main = async () => {
     },
     {
       key: "timeFormat",
-      type: "enum",
-      default: "12",
-      title: "Time Format",
-      description: "Choose between 12-hour (9:00 AM) or 24-hour (09:00) time format",
-      enumChoices: ["12", "24"],
-      enumPicker: "select"
+      type: "string",
+      default: "h:mm a",
+      title: "Date & Time Format",
+      description: "Define the format for event times using tokens.\n\nAvailable Tokens:\n- Year: YYYY (2025), YY (25)\n- Month: MMMM (September), MMM (Sep), MM (09), M (9)\n- Day: DD (15), D (15), dddd (Monday), ddd (Mon)\n- Hour: HH (09), H (9), hh (09), h (9)\n- Minute: mm (05), m (5)\n- Second: ss (03), s (3)\n- AM/PM: A (AM), a (am)\n\nExamples:\n- h:mm a  →  9:30 AM\n- HH:mm  →  09:30\n- ddd, MMM D, h:mm a  →  Mon, Sep 15, 9:30 AM"
     },
     {
       key: "meetingBaseUrls",
@@ -484,7 +543,8 @@ const main = async () => {
   ]);
   
   logseq.Editor.registerSlashCommand('Get Events', async (e) => {
-    getEvents(e);
+    const executionBlock = await logseq.App.getCurrentBlock();
+    getEvents(e, executionBlock);
   });
 }
 

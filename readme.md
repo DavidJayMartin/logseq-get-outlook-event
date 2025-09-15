@@ -281,12 +281,46 @@ The plugin is fully configurable through Logseq's plugin settings. Access settin
   - `none`: No brackets
 - **Purpose**: Creates Logseq page links for event attendees
 
-#### **Time Format**
-- **Options**: 
-  - `12` - 12-hour format with AM/PM (e.g., 9:00 AM, 2:30 PM)
-  - `24` - 24-hour format (e.g., 09:00, 14:30)
-- **Default**: `12` (12-hour format)
-- **Purpose**: Controls how event times are displayed
+#### **Time Format Configuration**
+
+The plugin uses tokens to format dates and times. You can customize the format using the following tokens:
+
+#### Date Tokens
+- **Year**
+  - `YYYY` - Full year (2025)
+  - `YY` - Short year (25)
+- **Month**
+  - `MMMM` - Full month name (September)
+  - `MMM` - Short month name (Sep)
+  - `MM` - Two-digit month (09)
+  - `M` - Month number (9)
+- **Day**
+  - `DD` - Two-digit day (15)
+  - `D` - Day number (15)
+  - `dddd` - Full day name (Monday)
+  - `ddd` - Short day name (Mon)
+
+#### Time Tokens
+- **Hour**
+  - `HH` - Two-digit 24-hour (09)
+  - `H` - 24-hour (9)
+  - `hh` - Two-digit 12-hour (09)
+  - `h` - 12-hour (9)
+- **Minute**
+  - `mm` - Two-digit minutes (05)
+  - `m` - Minutes (5)
+- **Second**
+  - `ss` - Two-digit seconds (03)
+  - `s` - Seconds (3)
+- **AM/PM**
+  - `A` - Uppercase (AM)
+  - `a` - Lowercase (am)
+
+#### Examples
+- `h:mm a` → 9:30 am
+- `HH:mm` → 09:30
+- `ddd, MMM D, h:mm a` → Mon, Sep 15, 9:30 AM
+- `YYYY-MM-DD HH:mm` → 2025-09-15 09:30
 
 #### **Meeting Base URLs**
 - **Description**: Comma-separated list of base URLs to search for meeting links
