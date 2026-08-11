@@ -1,19 +1,21 @@
-# Outlook Events Logseq Plugin
+# Outlook Events Logseq Plugin (Database Version)
 
-A Logseq plugin that fetches events from your local Outlook calendar and inserts them into your journal pages. This plugin consists of two components: a Logseq plugin (JavaScript) and a local API service (Python) that reads from your Outlook OST file.
+A Logseq plugin that fetches events from your local Outlook calendar and inserts them into your journal pages as native, typed database properties. This plugin consists of two components: a Logseq plugin (JavaScript) and a local API service (Python) that reads from your Outlook OST file.
+
+> **Logseq Database version required.** This branch targets the Logseq **DB** graph. It uses the DB property APIs (`upsertProperty` / `upsertBlockProperty`) and will not work on the older markdown (file) version. For the markdown version, use the `main` branch.
 
 ## Features
 
 - 📅 Fetches events from your local Outlook calendar
 - 📝 Inserts events directly into Logseq journal pages
 - ⏰ Displays events in chronological order (earliest to latest)
-- 👥 Shows attendees for each event (with configurable exclusions)
+- 👥 Adds attendees as linked page nodes (with configurable exclusions)
 - ⏱️ Calculates and displays event duration
-- 🏷️ Uses Logseq properties for structured data
+- 🏷️ Writes structured data as native, typed Logseq DB properties
 - 🔃 Shows recurring event indicator
 - 🔗 Automatically detects and creates meeting links
-- ⚙️ Fully configurable through Logseq plugin settings
-- 📋 Customizable output format templates
+- ⚙️ Configurable through Logseq plugin settings
+- 🔀 Optional per-field toggles for location and description
 
 ## Components
 
@@ -21,7 +23,7 @@ A Logseq plugin that fetches events from your local Outlook calendar and inserts
 The main plugin that runs within Logseq and provides the `/Get Events` slash command.
 
 ### 2. API Service (`outlook_events_api.py`)
-A local Flask API service that connects to your Outlook installation and retrieves calendar events.
+A local Flask API service that connects to your Outlook installation and retrieves calendar events. Sends CORS headers so the Logseq DB plugin origin (`lsp://logseq.com`) can reach it.
 
 ### 3. Service Management Scripts
 - `start_api_service.bat` - Starts the API service in background
@@ -29,7 +31,7 @@ A local Flask API service that connects to your Outlook installation and retriev
 
 ## Prerequisites
 
-- **Logseq** installed and running
+- **Logseq (Database version)** installed and running
 - **Microsoft Outlook** installed on Windows with access to your calendar
 - **Python 3.x** installed
 - Required Python packages: `flask`, `pywin32`
@@ -100,14 +102,39 @@ A local Flask API service that connects to your Outlook installation and retriev
 
 **Note:** If you created a virtual environment, the `start_api_service.bat` script will automatically use it. For manual starts, remember to activate it (`.venv\Scripts\activate`) each time.
 
-### Step 3: Install the Logseq Plugin
+### Step 3: Install the Logseq Plugin (Database version)
 
-1. **Enable the plugin in Logseq:**
-   - Open Logseq
-   - Go to Settings → Plugins
-   - Click "Load unpacked plugin"
-   - Navigate to and select your `logseq-get-outlook-events` folder
-   - The plugin should now appear in your plugins list
+The Logseq DB version removed the old **"Load unpacked plugin"** button from the main Plugins menu. Use one of the methods below.
+
+> **Note on folder paths:** The DB plugin loader can fail to load a local plugin whose path contains spaces (e.g. a OneDrive folder). If your path has spaces, create a space-free junction that points to the plugin folder and use that path instead:
+>
+> ```powershell
+> New-Item -ItemType Junction -Path "C:\logseq-plugins\get-outlook-events" -Target "C:\path\to\logseq-get-outlook-event"
+> ```
+
+#### Method A — plugins.edn (recommended)
+
+1. Open (or create) the file `C:\Users\<you>\.logseq\config\plugins.edn`
+2. Add an entry pointing to the plugin folder with a local `:url` (use the junction path if your real path has spaces):
+   ```edn
+   :logseq-get-outlook-events {:url "C:/logseq-plugins/get-outlook-events", :effect false, :theme false}
+   ```
+   > Do **not** use the marketplace `:repo`/`:version` format for a local plugin — that routes through `plugins.logseq.io` and fails with a GitHub/Cloudflare error.
+3. Fully quit Logseq (system tray → Quit) and relaunch.
+
+#### Method B — register from the developer console
+
+If `plugins.edn` doesn't pick it up, open Logseq DevTools (`Ctrl+Shift+I`), make sure the console context is the main Logseq window (you should see `LSPluginCore` in `Object.keys(window)`), then run:
+
+```javascript
+LSPluginCore.register({ url: "C:/logseq-plugins/get-outlook-events" })
+```
+
+The plugin registers immediately and appears in the Plugins panel.
+
+#### Verify it loaded
+
+In the DevTools console you should see `Get Outlook Events Plugin Loaded`. If you instead see a message that the plugin **requires a Logseq DB build**, your Logseq version predates the DB property APIs — update Logseq.
 
 ### Step 4: (Optional) Set up Automatic API Service Startup
 
@@ -242,15 +269,25 @@ Each event is inserted as a block with the following default format:
 
 ```
 Event Title 🔃 [Join Meeting](https://teams.microsoft.com/l/meetup-join/...)
-event-time:: 9:00 AM
-event-duration:: 01:00:00
-attendees:: [Homer Simpson], [Diana Prince]
 ```
+
+The block content holds the event title (optionally a page-linked node), the recurring emoji, and any detected meeting links. All structured data is written as **native, typed Logseq DB properties** on that block:
+
+| Property | Type | Notes |
+|----------|------|-------|
+| `event-time` | text | Start time, formatted per your Time Format setting |
+| `event-duration` | text | `HH:MM:SS` |
+| `event-location` | text | Omitted when **Include Location** is off |
+| `event-description` | text | Omitted when **Include Description** is off; truncated per Description Max Length |
+| `recurring` | checkbox | Set for recurring events |
+| `attendees` | node (many) | Each attendee becomes a linked page |
 
 Where:
 - 🔃 indicates a recurring event
 - Meeting links are automatically detected and added as clickable links
-- All fields are customizable through plugin settings
+- Attendees render as clickable page links (nodes), not plain text
+
+> These properties are defined automatically the first time the plugin loads, via the DB `upsertProperty` API.
 
 ## Configuration
 
@@ -270,16 +307,14 @@ The plugin is fully configurable through Logseq's plugin settings. Access settin
 - **Usage**: Change if running the API on a different port or machine
 
 #### **Add Double Brackets to Event Titles to create/add page references**
+- **Setting name**: Event Title as Node
 - **Options**: 
-  - `all` - Add brackets to all event titles
-  - `recurring` - Only add brackets to recurring events
-  - `none` - No brackets (default)
-- **Purpose**: Creates Logseq page links for events
+  - `all` - Make all event titles page-linked nodes
+  - `recurring` - Only link recurring events
+  - `none` - No linking (default)
+- **Purpose**: Turns event titles into Logseq page nodes
 
-- **Add Double Brackets to Attendee Names**: Choose whether to add [[double brackets]] around attendee names to create Logseq page links
-  - `all`: Add brackets to all attendee names (default)
-  - `none`: No brackets
-- **Purpose**: Creates Logseq page links for event attendees
+> Attendees are **always** added as linked page nodes via the `attendees` property, so a separate attendee bracket setting is no longer needed.
 
 #### **Time Format Configuration**
 
@@ -328,37 +363,25 @@ The plugin uses tokens to format dates and times. You can customize the format u
 - **Example**: `https://teams.microsoft.com,https://zoom.us,https://webex.com`
 - **Note**: The plugin will find any URLs in event descriptions that start with these base URLs
 
-#### **Output Format Template**
-- **Description**: Customize how events are displayed using template variables
-- **Default**: `{subject}\nevent-time:: {time}\nevent-duration:: {duration}\nattendees:: {attendees}`
-- **Available Variables**:
-  - `{subject}` - Event title (with brackets, emoji, and meeting links)
-  - `{time}` - Start time in 12-hour or 24-hour format
-  - `{duration}` - Event duration in HH:MM:SS format
-  - `{attendees}` - Formatted attendee list
-  - `{location}` - Event location
-  - `{description}` - Event description (truncated if configured)
-- **Special Features**:
-  - Use `\n` for line breaks
-  - Use `---CHILD---` to create child blocks
-- **Example Custom Template**:
-  ```
-  ## {subject}
-  **Time:** {time} ({duration})
-  **Location:** {location}
-  ---CHILD---
-  **Attendees:** {attendees}
-  ---CHILD---
-  **Notes:** {description}
-  ```
+#### **Output Format**
+
+The DB version writes fixed, native properties rather than a free-form text template. Instead of a template, use the toggles below to control which properties are written.
+
+#### **Include Location**
+- **Description**: Whether to write the `event-location` property
+- **Default**: `true`
+
+#### **Include Description**
+- **Description**: Whether to write the `event-description` property
+- **Default**: `true`
 
 #### **Include Empty Fields**
-- **Description**: Whether to show fields even when they're empty
+- **Description**: Whether to write properties even when their value is empty
 - **Default**: `false`
-- **Example**: When `true`, shows `location::` even if no location is set
+- **Example**: When `true`, writes `event-location` even if the event has no location
 
 #### **Description Max Length**
-- **Description**: Maximum characters to include from event descriptions
+- **Description**: Maximum characters to include from event descriptions (applies only when Include Description is on)
 - **Default**: `200`
 - **Usage**: Set to `0` for no limit
 
@@ -388,42 +411,9 @@ http://localhost:5000/events/today
 http://localhost:5000/events/2025-08-19?meeting_urls=https://teams.microsoft.com/l/meetup-join
 ```
 
-## Advanced Customization
+## Recurring Events
 
-### Custom Output Templates
-
-You can create complex event layouts using the output format template. Here are some examples:
-
-#### Minimal Format
-```
-{subject}
-{time}
-```
-
-#### Detailed Format with Child Blocks
-```
-{subject}
-event-time:: {time}
-event-duration:: {duration}
----CHILD---
-location:: {location}
----CHILD---
-description:: {description}
----CHILD---
-attendees:: {attendees}
-```
-
-#### Meeting-Focused Format
-```
-## {subject}
-⏰ {time} | ⏱️ {duration}
-📍 {location}
-👥 {attendees}
-```
-
-### Recurring Events
-
-Recurring events are automatically identified and marked with a 🔃 emoji. You can configure bracket settings to automatically create page links for recurring events only.
+Recurring events are automatically identified and marked with a 🔃 emoji, and the `recurring` checkbox property is set. Use the **Event Title as Node** setting to page-link recurring events only.
 
 ## Troubleshooting
 
@@ -445,17 +435,21 @@ Recurring events are automatically identified and marked with a 🔃 emoji. You 
    - Check that meeting links in Outlook match the configured base URLs
    - Ensure the Python service is receiving the meeting URLs parameter
 
-4. **Plugin not loading:**
-   - Verify the plugin folder structure
-   - Check Logseq's plugin settings
-   - Review browser console for JavaScript errors
+4. **Plugin not loading (DB version):**
+   - Confirm you used a local `:url` in `plugins.edn` (not the `:repo`/`:version` marketplace format)
+   - If your plugin path contains spaces, use a space-free junction path (see Installation Step 3)
+   - Try registering directly from the console: `LSPluginCore.register({ url: "C:/logseq-plugins/get-outlook-events" })`
+   - Review the developer console for JavaScript errors
 
-5. **Formatting issues:**
-   - Check the output format template for syntax errors
-   - Ensure `\n` is used for line breaks, not actual newlines
-   - Verify template variable names are spelled correctly
+5. **CORS error ("No 'Access-Control-Allow-Origin' header"):**
+   - The API service must send CORS headers so the plugin origin `lsp://logseq.com` can reach it
+   - Ensure you are running the current `outlook_events_api.py` (it adds these headers) and restart the service
+   - Verify with: `(Invoke-WebRequest http://localhost:5000/health -UseBasicParsing).Headers['Access-Control-Allow-Origin']` should return `*`
 
-6. **Automatic startup not working:**
+6. **"requires a Logseq DB build" message:**
+   - Your Logseq version predates the DB property APIs — update Logseq to a current Database build
+
+7. **Automatic startup not working:**
    - Check Task Scheduler to ensure the task is enabled and configured correctly
    - Verify the path to `launch_api.vbs` is correct in the scheduled task
    - Try running the scheduled task manually to test it
@@ -479,8 +473,8 @@ The plugin logs detailed information to Logseq's console. Open Developer Tools (
 2. Plugin extracts the journal date and configuration settings
 3. API request sent to Python service with meeting URL parameters
 4. Python service queries Outlook COM interface and extracts meeting links
-5. Events returned as JSON with meeting links included
-6. Plugin formats events using configured templates and inserts as Logseq blocks
+5. Events returned as JSON (with CORS headers) including meeting links
+6. Plugin inserts a block per event and sets native DB properties via `upsertBlockProperty`
 
 ### Meeting Link Detection
 

@@ -318,8 +318,8 @@ async function getEvents(e) {
 
     const sortedEvents = events.sort((a, b) => new Date(a.start) - new Date(b.start));
 
-    // Insert in reverse order with before:true so final order is chronological.
-    for (let i = sortedEvents.length - 1; i >= 0; i--) {
+    // Insert earliest first, each before the trigger block, so order stays chronological.
+    for (let i = 0; i < sortedEvents.length; i++) {
       const event = sortedEvents[i];
       const subject = formatEventSubject(event.subject, event.isRecurring, event.meetingLinks);
 
@@ -334,16 +334,21 @@ async function getEvents(e) {
 
       await setEventProperty(uuid, 'event-time', formatTime(event.start));
       await setEventProperty(uuid, 'event-duration', calculateDuration(event.start, event.end));
-      await setEventProperty(uuid, 'event-location', event.location || "");
       await setEventProperty(uuid, 'recurring', event.isRecurring ? true : null);
+
+      if (logseq.settings?.includeLocation !== false) {
+        await setEventProperty(uuid, 'event-location', event.location || "");
+      }
 
       const attendees = filterAttendees(event.attendees);
       if (attendees.length > 0) {
         await logseq.Editor.upsertBlockProperty(uuid, 'attendees', attendees);
       }
 
-      const desc = formatDescription(event.description || "");
-      await setEventProperty(uuid, 'event-description', desc);
+      if (logseq.settings?.includeDescription !== false) {
+        const desc = formatDescription(event.description || "");
+        await setEventProperty(uuid, 'event-description', desc);
+      }
     }
 
   } catch (error) {
@@ -414,6 +419,20 @@ const main = async () => {
       default: 'https://teams.microsoft.com,https://zoom.us,https://meet.google.com',
       title: 'Meeting Base URLs',
       description: 'Comma-separated base URLs to detect meeting links in event descriptions'
+    },
+    {
+      key: 'includeLocation',
+      type: 'boolean',
+      default: true,
+      title: 'Include Location',
+      description: 'Write the event-location property for each event'
+    },
+    {
+      key: 'includeDescription',
+      type: 'boolean',
+      default: true,
+      title: 'Include Description',
+      description: 'Write the event-description property for each event'
     },
     {
       key: 'includeEmptyFields',
