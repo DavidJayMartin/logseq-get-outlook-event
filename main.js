@@ -1,38 +1,10 @@
-/**
- * Current Block
- * @returns {object} - An object representing the block the plug-in is triggered in.
- */
 async function getCurrentBlock() {
-  let currentBlock = await logseq.App.getCurrentBlock();
-  if (currentBlock) {
-    currentBlockId = currentBlock.uuid; // Store the block ID (UUID) in the variable
-    console.log("Current block ID:", currentBlockId);
-  } else {
-    console.log("No block is currently selected.");
-  }
-  return currentBlock;
+  return await logseq.Editor.getCurrentBlock();
 }
 
-/**
- * @param {object} block - An object representing the block the plug-in is triggered in.
- * @returns - An object representing the page that hosts the provided block object.
- */
+// Returns the page entity for the block; works for both MD and DB graphs.
 async function getCurrentPage(block) {
-  const page = await logseq.Editor.getPage(block.page.id);
-  if (page) {
-    currentPageName = page.name;
-    console.log("Page name:", currentPageName);
-    
-    if (page.journal) {
-      console.log("This is a journal page. Date:", page.journal["date"]);
-    } else {
-      console.log("This is not a journal page.");
-    }
-  } else {
-    console.log("No page is currently open.");
-  }
-  
-  return page;
+  return await logseq.Editor.getPage(block.page.id);
 }
 
 /**
@@ -259,93 +231,15 @@ function formatDescription(description) {
   return description.trim();
 }
 
-/**
- * Format event block content based on user template and handle child blocks
- * @param {object} event - The event object from API
- * @returns {object} - Object with mainContent and childBlocks array
- */
-function formatEventContent(event) {
-  const template = logseq.settings?.outputFormat || 
-    "{subject}\\nevent-time:: {time}\\nevent-duration:: {duration}\\nattendees:: {attendees}";
-  const includeEmpty = logseq.settings?.includeEmptyFields || false;
-  
-  // Format the event subject with brackets, emoji, and meeting links
-  const formattedSubject = formatEventSubject(event.subject, event.isRecurring, event.meetingLinks);
-  
-  // Prepare all possible variables
-  const variables = {
-    subject: formattedSubject,
-    time: formatTime(event.start),
-    duration: calculateDuration(event.start, event.end),
-    attendees: formatAttendees(event.attendees),
-    location: event.location || "",
-    description: formatDescription(event.description || "")
-  };
-  
-  // Replace variables in template
-  let content = template;
-  
-  // Handle each variable replacement
-  Object.keys(variables).forEach(key => {
-    const value = variables[key];
-    const placeholder = `{${key}}`;
-    
-    if (content.includes(placeholder)) {
-      if (!includeEmpty && !value) {
-        // Remove the entire line if the field is empty and includeEmpty is false
-        const lines = content.split('\\n');
-        content = lines.filter(line => {
-          if (line.includes(placeholder)) {
-            // Only remove lines that are just property assignments (contain ::)
-            return line.includes('::') ? false : true;
-          }
-          return true;
-        }).join('\\n');
-      } else {
-        // Replace the placeholder with the value
-        content = content.replace(new RegExp(`\\{${key}\\}`, 'g'), value);
-      }
-    }
-  });
-  
-  // Convert \\n to actual newlines
-  content = content.replace(/\\n/g, '\n');
-  
-  // Split content by ---CHILD--- delimiter to separate main content from child blocks
-  const parts = content.split('---CHILD---');
-  const mainContent = parts[0].trim();
-  const childBlocks = parts.slice(1).map(block => block.trim()).filter(block => block.length > 0);
-  
-  return {
-    mainContent,
-    childBlocks
-  };
-}
 
-/**
- * @param {Array} attendees - Array of attendee names
- * @returns {string} - Comma-separated list with each name in square brackets if the confiuration is selected
- */
-function formatAttendees(attendees) {
-  if (!attendees || attendees.length === 0) {
-    return "";
-  }
-  
-  // Get the user's configured name to exclude
+
+// Returns filtered attendee names as an array (node property accepts names directly).
+function filterAttendees(attendees) {
+  if (!attendees || attendees.length === 0) return [];
   const excludeName = logseq.settings?.excludeUserName || "";
-  
-  // Get the bracketing setting
-  const bracketSetting = logseq.settings?.bracketAttendees || "all";
-  
-  // Filter out the user's name if configured
-  const filteredAttendees = excludeName 
+  return excludeName
     ? attendees.filter(name => name !== excludeName)
     : attendees;
-  
-  // Format names based on bracket setting
-  return filteredAttendees
-    .map(name => bracketSetting === "all" ? `[[${name}]]` : name)
-    .join(", ");
 }
 
 /**
@@ -387,165 +281,157 @@ async function fetchEventsFromAPI(dateString) {
   }
 }
 
-// Insert the day's list of events from the local Outlook calendar.
+// Set a DB property on a block; skips empty values unless includeEmptyFields is on.
+async function setEventProperty(blockUUID, key, value) {
+  const includeEmpty = logseq.settings?.includeEmptyFields || false;
+  if (!value && !includeEmpty) return;
+  await logseq.Editor.upsertBlockProperty(blockUUID, key, value ?? "");
+}
+
 async function getEvents(e) {
-  console.log('=== getEvents function called ===');
-  console.log('Trigger block UUID:', e.uuid);
-  
   try {
     const currentBlock = await getCurrentBlock();
-    const currentPage = await getCurrentPage(currentBlock);
-    
-    if (!currentPage?.journalDay) {
-      console.log("Not on a journal page");
-      logseq.Editor.insertBlock(e.uuid, `Error: This command only works on journal pages`, {before: true});
+    if (!currentBlock) {
+      logseq.UI.showMsg('Place the cursor in a block before running /Get Events', 'warning');
       return;
     }
-    
-    const pageDate = journalDayToDate(currentPage.journalDay);
+
+    const page = await getCurrentPage(currentBlock);
+
+    // DB graph journals expose journalDay; fall back to journal? flag check.
+    const journalDay = page?.journalDay ?? page?.["journal-day"];
+    const isJournal = !!journalDay || page?.["journal?"] === true || page?.journal === true;
+    if (!isJournal) {
+      logseq.UI.showMsg('Get Events only works on journal pages', 'warning');
+      return;
+    }
+
+    const pageDate = journalDayToDate(journalDay);
     const apiDateString = formatDateForAPI(pageDate);
-    
-    console.log("Fetching events for date:", apiDateString);
-    
-    // Fetch events from API
+    console.log('Fetching events for:', apiDateString);
+
     const events = await fetchEventsFromAPI(apiDateString);
-    
     if (events.length === 0) {
-      logseq.Editor.insertBlock(e.uuid, `No events found for ${apiDateString}`, {before: true});
+      logseq.UI.showMsg(`No events found for ${apiDateString}`, 'warning');
       return;
     }
-    
-    console.log(`Processing ${events.length} events`);
-    
-    // Sort events by start time (earliest to latest)
-    const sortedEvents = events.sort((a, b) => {
-      const startTimeA = new Date(a.start);
-      const startTimeB = new Date(b.start);
-      return startTimeA - startTimeB; // This gives us earliest to latest
-    });
-    
-    console.log('Events sorted by start time');
-    
-    // Insert in reverse order with before: true to get chronological order
-    for (let i = 0; i < sortedEvents.length; i++) {
+
+    const sortedEvents = events.sort((a, b) => new Date(a.start) - new Date(b.start));
+
+    // Insert in reverse order with before:true so final order is chronological.
+    for (let i = sortedEvents.length - 1; i >= 0; i--) {
       const event = sortedEvents[i];
-      console.log(`Processing event ${i + 1}:`, event.subject);
-      
-      // Format the complete event block content using the user's template
-      const eventData = formatEventContent(event);
-      
-      // Insert the main event block
+      const subject = formatEventSubject(event.subject, event.isRecurring, event.meetingLinks);
+
       const insertedBlock = await logseq.Editor.insertBlock(
-        e.uuid, 
-        eventData.mainContent, 
+        e.uuid,
+        subject,
         { sibling: true, before: true }
       );
-      
-      console.log('Event block inserted, UUID:', insertedBlock?.uuid);
-      
-      // Insert any child blocks
-      if (eventData.childBlocks.length > 0 && insertedBlock?.uuid) {
-        for (const childContent of eventData.childBlocks) {
-          const childBlock = await logseq.Editor.insertBlock(
-            insertedBlock.uuid,
-            childContent,
-            { sibling: false }  // Insert as child, not sibling
-          );
-          console.log('Child block inserted, UUID:', childBlock?.uuid);
-        }
+
+      if (!insertedBlock?.uuid) continue;
+      const uuid = insertedBlock.uuid;
+
+      await setEventProperty(uuid, 'event-time', formatTime(event.start));
+      await setEventProperty(uuid, 'event-duration', calculateDuration(event.start, event.end));
+      await setEventProperty(uuid, 'event-location', event.location || "");
+      await setEventProperty(uuid, 'recurring', event.isRecurring ? true : null);
+
+      const attendees = filterAttendees(event.attendees);
+      if (attendees.length > 0) {
+        await logseq.Editor.upsertBlockProperty(uuid, 'attendees', attendees);
       }
-      
-      console.log(`Inserted event: ${event.subject}`);
+
+      const desc = formatDescription(event.description || "");
+      await setEventProperty(uuid, 'event-description', desc);
     }
-    
-    console.log('=== getEvents function completed ===');
-    
+
   } catch (error) {
     console.error('Error in getEvents:', error);
-    logseq.Editor.insertBlock(e.uuid, `Error fetching events: ${error.message}`, {before: true});
+    logseq.UI.showMsg(`Get Events error: ${error.message}`, 'error');
   }
 }
 
-// The main app
+// Registers the typed DB properties this plugin writes; safe to call on every load.
+async function registerProperties() {
+  const upsert = logseq.Editor.upsertProperty;
+  await upsert('event-time',        { type: 'default' });
+  await upsert('event-duration',     { type: 'default' });
+  await upsert('event-location',     { type: 'default' });
+  await upsert('event-description',  { type: 'default' });
+  await upsert('recurring',          { type: 'checkbox' });
+  await upsert('attendees',          { type: 'node', cardinality: 'many' });
+}
+
 const main = async () => {
   console.log('Get Outlook Events Plugin Loaded');
-  
-  // Register plugin settings
+
+  if (typeof logseq.Editor.upsertBlockProperty !== 'function' ||
+      typeof logseq.Editor.upsertProperty !== 'function') {
+    logseq.UI.showMsg(
+      'Get Outlook Events requires a Logseq DB build. Please update Logseq.',
+      'error'
+    );
+    return;
+  }
+
+  await registerProperties();
+
   logseq.useSettingsSchema([
     {
-      key: "excludeUserName",
-      type: "string",
-      default: "",
-      title: "Excluded User Name",
-      description: "Enter your name as it is returned by Outlook to exclude it from attendees lists (e.g., 'Simpson, Homer' or 'Diana Prince')"
+      key: 'excludeUserName',
+      type: 'string',
+      default: '',
+      title: 'Excluded User Name',
+      description: "Your name as returned by Outlook — excluded from the attendees property (e.g. 'Simpson, Homer')"
     },
     {
-      key: "apiUrl",
-      type: "string", 
-      default: "http://localhost:5000",
-      title: "API URL",
-      description: "The URL of the Outlook Events API service"
+      key: 'apiUrl',
+      type: 'string',
+      default: 'http://localhost:5000',
+      title: 'API URL',
+      description: 'URL of the Outlook Events API service'
     },
     {
-      key: "bracketEvents",
-      type: "enum",
-      default: "none",
-      title: "Add Double Brackets to Event Titles",
-      description: "Choose when to add [[double brackets]] around event subjects to create Logseq page links\n\nOptions:\n- all: Add brackets to all event titles\n- recurring: Only add brackets to recurring events\n- none: No brackets (default)",
-      enumChoices: ["all", "recurring", "none"],
-      enumPicker: "select"
+      key: 'bracketEvents',
+      type: 'enum',
+      default: 'none',
+      title: 'Event Title as Node',
+      description: 'Make event titles page-linked nodes in the block content',
+      enumChoices: ['all', 'recurring', 'none'],
+      enumPicker: 'select'
     },
     {
-      key: "bracketAttendees",
-      type: "enum",
-      default: "all",
-      title: "Add Double Brackets to Attendee Names",
-      description: "Choose whether to add [[double brackets]] around attendee names to create Logseq page links",
-      enumChoices: ["all", "none"],
-      enumPicker: "select"
+      key: 'timeFormat',
+      type: 'string',
+      default: 'h:mm a',
+      title: 'Time Format',
+      description: 'Tokens: h/hh/H/HH (hour), mm (min), a/A (am/pm). Examples: h:mm a → 9:30 AM  |  HH:mm → 09:30'
     },
     {
-      key: "timeFormat",
-      type: "string",
-      default: "h:mm a",
-      title: "Date & Time Format",
-      description: "Define the format for event times using tokens.\n\nAvailable Tokens:\n- Year: YYYY (2025), YY (25)\n- Month: MMMM (September), MMM (Sep), MM (09), M (9)\n- Day: DD (15), D (15), dddd (Monday), ddd (Mon)\n- Hour: HH (09), H (9), hh (09), h (9)\n- Minute: mm (05), m (5)\n- Second: ss (03), s (3)\n- AM/PM: A (AM), a (am)\n\nExamples:\n- h:mm a  →  9:30 AM\n- HH:mm  →  09:30\n- ddd, MMM D, h:mm a  →  Mon, Sep 15, 9:30 AM"
+      key: 'meetingBaseUrls',
+      type: 'string',
+      default: 'https://teams.microsoft.com,https://zoom.us,https://meet.google.com',
+      title: 'Meeting Base URLs',
+      description: 'Comma-separated base URLs to detect meeting links in event descriptions'
     },
     {
-      key: "meetingBaseUrls",
-      type: "string",
-      default: "https://teams.microsoft.com,https://zoom.us,https://meet.google.com",
-      title: "Meeting Base URLs",
-      description: "Comma-separated list of base URLs to look for meeting links (e.g., 'https://teams.microsoft.com,https://zoom.us,https://meet.google.com')"
-    },
-    {
-      key: "outputFormat",
-      type: "string",
-      inputAs: "textarea",
-      default: "{subject}\\nevent-time:: {time}\\nevent-duration:: {duration}\\nattendees:: {attendees}",
-      title: "Output Format Template",
-      description: "Customize the format of event blocks. Available variables:\n\n{subject}, {time}, {duration}, {attendees}, {location}, {description}\n\nAdd ---CHILD--- to start a new child blocks."
-    },
-    {
-      key: "includeEmptyFields",
-      type: "boolean",
+      key: 'includeEmptyFields',
+      type: 'boolean',
       default: false,
-      title: "Include Empty Fields",
-      description: "Whether to include fields in the output even when they are empty (e.g., show 'location::' even if no location is set)"
+      title: 'Include Empty Fields',
+      description: 'Write properties even when the value is empty (e.g. event-location with no location set)'
     },
     {
-      key: "descriptionMaxLength",
-      type: "number",
+      key: 'descriptionMaxLength',
+      type: 'number',
       default: 200,
-      title: "Description Max Length",
-      description: "Maximum number of characters to include from event descriptions (0 = no limit)"
+      title: 'Description Max Length',
+      description: 'Max characters from event descriptions (0 = no limit)'
     }
   ]);
-  
-  logseq.Editor.registerSlashCommand('Get Events', async (e) => {
-    const executionBlock = await logseq.App.getCurrentBlock();
-    getEvents(e, executionBlock);
-  });
-}
+
+  logseq.Editor.registerSlashCommand('Get Events', getEvents);
+};
 
 logseq.ready(main).catch(console.error);
